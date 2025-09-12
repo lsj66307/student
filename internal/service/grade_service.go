@@ -1,10 +1,11 @@
-package models
+package service
 
 import (
 	"database/sql"
 	"fmt"
 	"strings"
 	"time"
+	"student-management-system/internal/domain"
 )
 
 // GradeService 成绩服务
@@ -18,7 +19,7 @@ func NewGradeService(db *sql.DB) *GradeService {
 }
 
 // CreateGrade 创建成绩
-func (s *GradeService) CreateGrade(req CreateGradeRequest) (*Grade, error) {
+func (s *GradeService) CreateGrade(req domain.CreateGradeRequest) (*domain.Grade, error) {
 	// 检查学生是否存在
 	var studentCount int
 	err := s.db.QueryRow("SELECT COUNT(*) FROM students WHERE id = $1", req.StudentID).Scan(&studentCount)
@@ -56,7 +57,7 @@ func (s *GradeService) CreateGrade(req CreateGradeRequest) (*Grade, error) {
 		return nil, fmt.Errorf("创建成绩失败: %v", err)
 	}
 
-	grade := &Grade{
+	grade := &domain.Grade{
 		ID:               id,
 		StudentID:        req.StudentID,
 		ChineseScore:     req.ChineseScore,
@@ -106,7 +107,7 @@ func (s *GradeService) validateTeacherIDs(chineseTeacherID, mathTeacherID, engli
 }
 
 // GetAllGrades 获取成绩列表（支持筛选和分页）
-func (s *GradeService) GetAllGrades(params GradeQueryParams) ([]GradeWithDetails, int, error) {
+func (s *GradeService) GetAllGrades(params domain.GradeQueryParams) ([]domain.GradeWithDetails, int, error) {
 	// 构建查询条件
 	var conditions []string
 	var args []interface{}
@@ -165,9 +166,9 @@ func (s *GradeService) GetAllGrades(params GradeQueryParams) ([]GradeWithDetails
 	}
 	defer rows.Close()
 
-	var grades []GradeWithDetails
+	var grades []domain.GradeWithDetails
 	for rows.Next() {
-		var grade GradeWithDetails
+		var grade domain.GradeWithDetails
 		var chineseTeacherName, mathTeacherName, englishTeacherName, sportsTeacherName, musicTeacherName sql.NullString
 		err := rows.Scan(
 			&grade.ID, &grade.StudentID, &grade.ChineseScore, &grade.MathScore, &grade.EnglishScore, &grade.SportsScore, &grade.MusicScore,
@@ -205,7 +206,7 @@ func (s *GradeService) GetAllGrades(params GradeQueryParams) ([]GradeWithDetails
 }
 
 // GetGradeByID 根据ID获取成绩
-func (s *GradeService) GetGradeByID(id int) (*GradeWithDetails, error) {
+func (s *GradeService) GetGradeByID(id int) (*domain.GradeWithDetails, error) {
 	query := `SELECT g.id, g.student_id, g.chinese_score, g.math_score, g.english_score, g.sports_score, g.music_score,
 			 g.chinese_teacher_id, g.math_teacher_id, g.english_teacher_id,
 			 g.sports_teacher_id, g.music_teacher_id,
@@ -221,7 +222,7 @@ func (s *GradeService) GetGradeByID(id int) (*GradeWithDetails, error) {
 			 LEFT JOIN teachers mt ON g.music_teacher_id = mt.id
 			 WHERE g.id = $1`
 
-	var grade GradeWithDetails
+	var grade domain.GradeWithDetails
 	var chineseTeacherName, mathTeacherName, englishTeacherName, sportsTeacherName, musicTeacherName sql.NullString
 	err := s.db.QueryRow(query, id).Scan(
 		&grade.ID, &grade.StudentID, &grade.ChineseScore, &grade.MathScore, &grade.EnglishScore, &grade.SportsScore, &grade.MusicScore,
@@ -259,7 +260,7 @@ func (s *GradeService) GetGradeByID(id int) (*GradeWithDetails, error) {
 }
 
 // UpdateGrade 更新成绩
-func (s *GradeService) UpdateGrade(id int, req UpdateGradeRequest) (*Grade, error) {
+func (s *GradeService) UpdateGrade(id int, req domain.UpdateGradeRequest) (*domain.Grade, error) {
 	// 检查成绩是否存在
 	var count int
 	err := s.db.QueryRow("SELECT COUNT(*) FROM grades WHERE id = $1", id).Scan(&count)

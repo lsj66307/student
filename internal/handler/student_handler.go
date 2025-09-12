@@ -1,22 +1,23 @@
-package handlers
+package handler
 
 import (
 	"net/http"
 	"strconv"
-	"student-management-system/models"
+	"student-management-system/internal/domain"
+	"student-management-system/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 // StudentHandler 学生处理器
 type StudentHandler struct {
-	studentService *models.StudentService
+	studentService *service.StudentService
 }
 
 // NewStudentHandler 创建新的学生处理器
 func NewStudentHandler() *StudentHandler {
 	return &StudentHandler{
-		studentService: models.NewStudentService(),
+		studentService: service.NewStudentService(),
 	}
 }
 
@@ -49,7 +50,7 @@ type PaginatedResponse struct {
 // @Failure 500 {object} Response
 // @Router /api/students [post]
 func (h *StudentHandler) CreateStudent(c *gin.Context) {
-	var req models.CreateStudentRequest
+	var req domain.CreateStudentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Code:    400,
@@ -188,7 +189,7 @@ func (h *StudentHandler) UpdateStudent(c *gin.Context) {
 		return
 	}
 
-	var req models.UpdateStudentRequest
+	var req domain.UpdateStudentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Code:    400,

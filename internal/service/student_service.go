@@ -1,9 +1,10 @@
-package models
+package service
 
 import (
 	"database/sql"
 	"fmt"
-	"student-management-system/database"
+	"student-management-system/internal/repository"
+	"student-management-system/internal/domain"
 	"time"
 )
 
@@ -15,19 +16,19 @@ type StudentService struct {
 // NewStudentService 创建新的学生服务实例
 func NewStudentService() *StudentService {
 	return &StudentService{
-		db: database.DB,
+		db: repository.DB,
 	}
 }
 
 // CreateStudent 创建新学生
-func (s *StudentService) CreateStudent(req CreateStudentRequest) (*Student, error) {
+func (s *StudentService) CreateStudent(req domain.CreateStudentRequest) (*domain.Student, error) {
 	query := `
 		INSERT INTO students (name, age, gender, email, phone, major, grade)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, name, age, gender, email, phone, major, grade, created_at, updated_at
 	`
 
-	student := &Student{}
+	student := &domain.Student{}
 	err := s.db.QueryRow(query, req.Name, req.Age, req.Gender, req.Email, req.Phone, req.Major, req.Grade).Scan(
 		&student.ID, &student.Name, &student.Age, &student.Gender,
 		&student.Email, &student.Phone, &student.Major, &student.Grade,
@@ -42,14 +43,14 @@ func (s *StudentService) CreateStudent(req CreateStudentRequest) (*Student, erro
 }
 
 // GetStudentByID 根据ID获取学生信息
-func (s *StudentService) GetStudentByID(id int) (*Student, error) {
+func (s *StudentService) GetStudentByID(id int) (*domain.Student, error) {
 	query := `
 		SELECT id, name, age, gender, email, phone, major, grade, created_at, updated_at
 		FROM students
 		WHERE id = $1
 	`
 
-	student := &Student{}
+	student := &domain.Student{}
 	err := s.db.QueryRow(query, id).Scan(
 		&student.ID, &student.Name, &student.Age, &student.Gender,
 		&student.Email, &student.Phone, &student.Major, &student.Grade,
@@ -67,7 +68,7 @@ func (s *StudentService) GetStudentByID(id int) (*Student, error) {
 }
 
 // GetAllStudents 获取所有学生列表
-func (s *StudentService) GetAllStudents(page, pageSize int) ([]*Student, int, error) {
+func (s *StudentService) GetAllStudents(page, pageSize int) ([]*domain.Student, int, error) {
 	// 计算偏移量
 	offset := (page - 1) * pageSize
 
@@ -93,9 +94,9 @@ func (s *StudentService) GetAllStudents(page, pageSize int) ([]*Student, int, er
 	}
 	defer rows.Close()
 
-	var students []*Student
+	var students []*domain.Student
 	for rows.Next() {
-		student := &Student{}
+		student := &domain.Student{}
 		err := rows.Scan(
 			&student.ID, &student.Name, &student.Age, &student.Gender,
 			&student.Email, &student.Phone, &student.Major, &student.Grade,
@@ -115,7 +116,7 @@ func (s *StudentService) GetAllStudents(page, pageSize int) ([]*Student, int, er
 }
 
 // UpdateStudent 更新学生信息
-func (s *StudentService) UpdateStudent(id int, req UpdateStudentRequest) (*Student, error) {
+func (s *StudentService) UpdateStudent(id int, req domain.UpdateStudentRequest) (*domain.Student, error) {
 	// 构建动态更新查询
 	setClauses := []string{}
 	args := []interface{}{}
@@ -176,7 +177,7 @@ func (s *StudentService) UpdateStudent(id int, req UpdateStudentRequest) (*Stude
 		RETURNING id, name, age, gender, email, phone, major, grade, created_at, updated_at
 	`, fmt.Sprintf("%s", setClauses), argIndex)
 
-	student := &Student{}
+	student := &domain.Student{}
 	err := s.db.QueryRow(query, args...).Scan(
 		&student.ID, &student.Name, &student.Age, &student.Gender,
 		&student.Email, &student.Phone, &student.Major, &student.Grade,

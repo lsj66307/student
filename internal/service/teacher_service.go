@@ -1,9 +1,10 @@
-package models
+package service
 
 import (
 	"database/sql"
 	"fmt"
-	"student-management-system/database"
+	"student-management-system/internal/repository"
+	"student-management-system/internal/domain"
 	"time"
 )
 
@@ -15,19 +16,19 @@ type TeacherService struct {
 // NewTeacherService 创建新的老师服务实例
 func NewTeacherService() *TeacherService {
 	return &TeacherService{
-		db: database.DB,
+		db: repository.DB,
 	}
 }
 
 // CreateTeacher 创建新老师
-func (t *TeacherService) CreateTeacher(req CreateTeacherRequest) (*Teacher, error) {
+func (t *TeacherService) CreateTeacher(req domain.CreateTeacherRequest) (*domain.Teacher, error) {
 	query := `
 		INSERT INTO teachers (name, age, gender, email, phone, subject, title, department)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
 	`
 
-	teacher := &Teacher{}
+	teacher := &domain.Teacher{}
 	err := t.db.QueryRow(query, req.Name, req.Age, req.Gender, req.Email, req.Phone, req.Subject, req.Title, req.Department).Scan(
 		&teacher.ID, &teacher.Name, &teacher.Age, &teacher.Gender,
 		&teacher.Email, &teacher.Phone, &teacher.Subject, &teacher.Title,
@@ -42,14 +43,14 @@ func (t *TeacherService) CreateTeacher(req CreateTeacherRequest) (*Teacher, erro
 }
 
 // GetTeacherByID 根据ID获取老师信息
-func (t *TeacherService) GetTeacherByID(id int) (*Teacher, error) {
+func (t *TeacherService) GetTeacherByID(id int) (*domain.Teacher, error) {
 	query := `
 		SELECT id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
 		FROM teachers
 		WHERE id = $1
 	`
 
-	teacher := &Teacher{}
+	teacher := &domain.Teacher{}
 	err := t.db.QueryRow(query, id).Scan(
 		&teacher.ID, &teacher.Name, &teacher.Age, &teacher.Gender,
 		&teacher.Email, &teacher.Phone, &teacher.Subject, &teacher.Title,
@@ -67,7 +68,7 @@ func (t *TeacherService) GetTeacherByID(id int) (*Teacher, error) {
 }
 
 // GetAllTeachers 获取所有老师列表
-func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*Teacher, int, error) {
+func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, int, error) {
 	// 计算偏移量
 	offset := (page - 1) * pageSize
 
@@ -93,9 +94,9 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*Teacher, int, er
 	}
 	defer rows.Close()
 
-	var teachers []*Teacher
+	var teachers []*domain.Teacher
 	for rows.Next() {
-		teacher := &Teacher{}
+		teacher := &domain.Teacher{}
 		err := rows.Scan(
 			&teacher.ID, &teacher.Name, &teacher.Age, &teacher.Gender,
 			&teacher.Email, &teacher.Phone, &teacher.Subject, &teacher.Title,
@@ -115,7 +116,7 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*Teacher, int, er
 }
 
 // UpdateTeacher 更新老师信息
-func (t *TeacherService) UpdateTeacher(id int, req UpdateTeacherRequest) (*Teacher, error) {
+func (t *TeacherService) UpdateTeacher(id int, req domain.UpdateTeacherRequest) (*domain.Teacher, error) {
 	// 构建动态更新查询
 	setClauses := []string{}
 	args := []interface{}{}
@@ -181,7 +182,7 @@ func (t *TeacherService) UpdateTeacher(id int, req UpdateTeacherRequest) (*Teach
 		RETURNING id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
 	`, fmt.Sprintf("%s", setClauses), argIndex)
 
-	teacher := &Teacher{}
+	teacher := &domain.Teacher{}
 	err := t.db.QueryRow(query, args...).Scan(
 		&teacher.ID, &teacher.Name, &teacher.Age, &teacher.Gender,
 		&teacher.Email, &teacher.Phone, &teacher.Subject, &teacher.Title,

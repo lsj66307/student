@@ -1,21 +1,22 @@
-package handlers
+package handler
 
 import (
 	"net/http"
 	"strconv"
 
-	"student-management-system/models"
+	"student-management-system/internal/service"
+	"student-management-system/internal/domain"
 
 	"github.com/gin-gonic/gin"
 )
 
 // GradeHandler 成绩处理器
 type GradeHandler struct {
-	gradeService *models.GradeService
+	gradeService *service.GradeService
 }
 
 // NewGradeHandler 创建成绩处理器实例
-func NewGradeHandler(gradeService *models.GradeService) *GradeHandler {
+func NewGradeHandler(gradeService *service.GradeService) *GradeHandler {
 	return &GradeHandler{
 		gradeService: gradeService,
 	}
@@ -33,7 +34,7 @@ func NewGradeHandler(gradeService *models.GradeService) *GradeHandler {
 // @Failure 500 {object} map[string]interface{} "服务器内部错误"
 // @Router /api/v1/grades [post]
 func (h *GradeHandler) CreateGrade(c *gin.Context) {
-	var req models.CreateGradeRequest
+	var req domain.CreateGradeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
@@ -73,7 +74,7 @@ func (h *GradeHandler) CreateGrade(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{} "服务器内部错误"
 // @Router /api/v1/grades [get]
 func (h *GradeHandler) GetGrades(c *gin.Context) {
-	var params models.GradeQueryParams
+	var params domain.GradeQueryParams
 
 	// 解析查询参数
 	if studentIDStr := c.Query("student_id"); studentIDStr != "" {
@@ -195,7 +196,7 @@ func (h *GradeHandler) UpdateGrade(c *gin.Context) {
 		return
 	}
 
-	var req models.UpdateGradeRequest
+	var req domain.UpdateGradeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,

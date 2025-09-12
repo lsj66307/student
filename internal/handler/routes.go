@@ -1,9 +1,10 @@
-package handlers
+package handler
 
 import (
+	"student-management-system/internal/repository"
+	"student-management-system/internal/service"
+
 	"github.com/gin-gonic/gin"
-	"student-management-system/database"
-	"student-management-system/models"
 )
 
 // SetupRoutes 设置所有路由
@@ -28,9 +29,9 @@ func SetupRoutes() *gin.Engine {
 	// 创建处理器
 	studentHandler := NewStudentHandler()
 	teacherHandler := NewTeacherHandler()
-	
+
 	// 创建成绩服务和处理器
-	gradeService := models.NewGradeService(database.DB)
+	gradeService := service.NewGradeService(repository.DB)
 	gradeHandler := NewGradeHandler(gradeService)
 
 	// API路由组

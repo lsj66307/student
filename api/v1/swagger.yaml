@@ -1,0 +1,1194 @@
+openapi: 3.0.3
+info:
+  title: 学生管理系统 API
+  description: 基于Go和Gin框架的学生管理系统RESTful API
+  version: 1.0.0
+  contact:
+    name: 学生管理系统
+    email: admin@example.com
+servers:
+  - url: http://localhost:3060
+    description: 本地开发服务器
+paths:
+  /api/v1/students:
+    get:
+      summary: 获取学生列表
+      description: 分页获取所有学生信息
+      tags:
+        - 学生管理
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: 成功获取学生列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "获取成功"
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Student"
+                  total:
+                    type: integer
+                    example: 10
+                  page:
+                    type: integer
+                    example: 1
+                  size:
+                    type: integer
+                    example: 10
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: 创建学生
+      description: 创建新的学生记录
+      tags:
+        - 学生管理
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStudentRequest"
+      responses:
+        "201":
+          description: 学生创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "学生创建成功"
+                  data:
+                    $ref: "#/components/schemas/Student"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/students/{id}:
+    get:
+      summary: 获取单个学生信息
+      description: 根据学生ID获取详细信息
+      tags:
+        - 学生管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 学生ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 成功获取学生信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "获取成功"
+                  data:
+                    $ref: "#/components/schemas/Student"
+        "404":
+          description: 学生不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      summary: 更新学生信息
+      description: 根据学生ID更新学生信息
+      tags:
+        - 学生管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 学生ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStudentRequest"
+      responses:
+        "200":
+          description: 学生信息更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "更新成功"
+                  data:
+                    $ref: "#/components/schemas/Student"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 学生不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: 删除学生
+      description: 根据学生ID删除学生记录
+      tags:
+        - 学生管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 学生ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 学生删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "删除成功"
+        "404":
+          description: 学生不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/teachers:
+    get:
+      summary: 获取老师列表
+      description: 分页获取所有老师信息
+      tags:
+        - 老师管理
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: 成功获取老师列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "获取成功"
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Teacher"
+                  total:
+                    type: integer
+                    example: 10
+                  page:
+                    type: integer
+                    example: 1
+                  size:
+                    type: integer
+                    example: 10
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: 创建老师
+      description: 创建新的老师记录
+      tags:
+        - 老师管理
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeacherRequest"
+      responses:
+        "201":
+          description: 老师创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "老师创建成功"
+                  data:
+                    $ref: "#/components/schemas/Teacher"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/teachers/{id}:
+    get:
+      summary: 获取老师详情
+      description: 根据老师ID获取老师详细信息
+      tags:
+        - 老师管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 老师ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 成功获取老师信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "获取成功"
+                  data:
+                    $ref: "#/components/schemas/Teacher"
+        "404":
+          description: 老师不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      summary: 更新老师信息
+      description: 根据老师ID更新老师信息
+      tags:
+        - 老师管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 老师ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTeacherRequest"
+      responses:
+        "200":
+          description: 老师信息更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "更新成功"
+                  data:
+                    $ref: "#/components/schemas/Teacher"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 老师不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: 删除老师
+      description: 根据老师ID删除老师记录
+      tags:
+        - 老师管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 老师ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 老师删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "删除成功"
+        "404":
+          description: 老师不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/grades:
+    get:
+      summary: 获取成绩列表
+      description: 分页获取所有成绩信息
+      tags:
+        - 成绩管理
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: student_id
+          in: query
+          description: 学生ID筛选
+          required: false
+          schema:
+            type: integer
+        - name: teacher_id
+          in: query
+          description: 老师ID筛选
+          required: false
+          schema:
+            type: integer
+        - name: subject
+          in: query
+          description: 科目筛选
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 成功获取成绩列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "获取成功"
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GradeWithDetails"
+                  total:
+                    type: integer
+                    example: 10
+                  page:
+                    type: integer
+                    example: 1
+                  size:
+                    type: integer
+                    example: 10
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      summary: 创建成绩
+      description: 添加新的成绩记录
+      tags:
+        - 成绩管理
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGradeRequest"
+      responses:
+        "201":
+          description: 成绩创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "创建成功"
+                  data:
+                    $ref: "#/components/schemas/Grade"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/grades/{id}:
+    get:
+      summary: 获取单个成绩
+      description: 根据成绩ID获取成绩详细信息
+      tags:
+        - 成绩管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 成绩ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 成功获取成绩信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "获取成功"
+                  data:
+                    $ref: "#/components/schemas/GradeWithDetails"
+        "404":
+          description: 成绩不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      summary: 更新成绩
+      description: 根据成绩ID更新成绩信息
+      tags:
+        - 成绩管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 成绩ID
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGradeRequest"
+      responses:
+        "200":
+          description: 成绩更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "更新成功"
+                  data:
+                    $ref: "#/components/schemas/Grade"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 成绩不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      summary: 删除成绩
+      description: 根据成绩ID删除成绩记录
+      tags:
+        - 成绩管理
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 成绩ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: 成绩删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "删除成功"
+        "404":
+          description: 成绩不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /health:
+    get:
+      summary: 健康检查
+      description: 检查服务器运行状态
+      tags:
+        - 系统
+      responses:
+        "200":
+          description: 服务器运行正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  message:
+                    type: string
+                    example: "学生管理系统运行正常"
+  /:
+    get:
+      summary: API文档首页
+      description: 获取API文档和使用说明
+      tags:
+        - 系统
+      responses:
+        "200":
+          description: API文档页面
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  schemas:
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 学生ID
+          example: 1
+        name:
+          type: string
+          description: 学生姓名
+          example: "张三"
+        age:
+          type: integer
+          description: 学生年龄
+          example: 20
+        gender:
+          type: string
+          description: 学生性别
+          enum: ["男", "女"]
+          example: "男"
+        email:
+          type: string
+          format: email
+          description: 学生邮箱
+          example: "zhangsan@example.com"
+        phone:
+          type: string
+          description: 学生电话
+          example: "13800138000"
+        major:
+          type: string
+          description: 学生专业
+          example: "计算机科学"
+        grade:
+          type: string
+          description: 学生年级
+          example: "大一"
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2025-09-12T07:20:35.890978Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+          example: "2025-09-12T07:20:35.890978Z"
+      required:
+        - id
+        - name
+        - age
+        - gender
+        - email
+        - phone
+        - major
+        - grade
+        - created_at
+        - updated_at
+    CreateStudentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 学生姓名
+          example: "张三"
+        age:
+          type: integer
+          minimum: 1
+          maximum: 150
+          description: 学生年龄
+          example: 20
+        gender:
+          type: string
+          enum: ["男", "女"]
+          description: 学生性别
+          example: "男"
+        email:
+          type: string
+          format: email
+          description: 学生邮箱
+          example: "zhangsan@example.com"
+        phone:
+          type: string
+          description: 学生电话
+          example: "13800138000"
+        major:
+          type: string
+          description: 学生专业
+          example: "计算机科学"
+        grade:
+          type: string
+          description: 学生年级
+          example: "大一"
+      required:
+        - name
+        - age
+        - gender
+        - email
+        - phone
+        - major
+        - grade
+    UpdateStudentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 学生姓名
+          example: "张三"
+        age:
+          type: integer
+          minimum: 1
+          maximum: 150
+          description: 学生年龄
+          example: 20
+        gender:
+          type: string
+          enum: ["男", "女"]
+          description: 学生性别
+          example: "男"
+        email:
+          type: string
+          format: email
+          description: 学生邮箱
+          example: "zhangsan@example.com"
+        phone:
+          type: string
+          description: 学生电话
+          example: "13800138000"
+        major:
+          type: string
+          description: 学生专业
+          example: "计算机科学"
+        grade:
+          type: string
+          description: 学生年级
+          example: "大一"
+    Teacher:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 老师ID
+          example: 1
+        name:
+          type: string
+          description: 老师姓名
+          example: "李老师"
+        age:
+          type: integer
+          description: 老师年龄
+          example: 35
+        gender:
+          type: string
+          description: 老师性别
+          enum: ["男", "女"]
+          example: "女"
+        email:
+          type: string
+          format: email
+          description: 老师邮箱
+          example: "li.teacher@example.com"
+        phone:
+          type: string
+          description: 老师电话
+          example: "13900139000"
+        subject:
+          type: string
+          description: 教授科目
+          example: "数学"
+        title:
+          type: string
+          description: 职称
+          example: "副教授"
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2025-09-12T07:20:35.890978Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+          example: "2025-09-12T07:20:35.890978Z"
+      required:
+        - id
+        - name
+        - age
+        - gender
+        - email
+        - phone
+        - subject
+        - title
+        - created_at
+        - updated_at
+    CreateTeacherRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 老师姓名
+          example: "李老师"
+        age:
+          type: integer
+          minimum: 1
+          maximum: 150
+          description: 老师年龄
+          example: 35
+        gender:
+          type: string
+          enum: ["男", "女"]
+          description: 老师性别
+          example: "女"
+        email:
+          type: string
+          format: email
+          description: 老师邮箱
+          example: "li.teacher@example.com"
+        phone:
+          type: string
+          description: 老师电话
+          example: "13900139000"
+        subject:
+          type: string
+          description: 教授科目
+          example: "数学"
+        title:
+          type: string
+          description: 职称
+          example: "副教授"
+      required:
+        - name
+        - age
+        - gender
+        - email
+        - phone
+        - subject
+        - title
+    UpdateTeacherRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 老师姓名
+          example: "李老师"
+        age:
+          type: integer
+          minimum: 1
+          maximum: 150
+          description: 老师年龄
+          example: 35
+        gender:
+          type: string
+          enum: ["男", "女"]
+          description: 老师性别
+          example: "女"
+        email:
+          type: string
+          format: email
+          description: 老师邮箱
+          example: "li.teacher@example.com"
+        phone:
+          type: string
+          description: 老师电话
+          example: "13900139000"
+        subject:
+          type: string
+          description: 教授科目
+          example: "数学"
+        title:
+          type: string
+          description: 职称
+          example: "副教授"
+    Grade:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 成绩ID
+          example: 1
+        student_id:
+          type: integer
+          description: 学生ID
+          example: 1
+        teacher_id:
+          type: integer
+          description: 老师ID
+          example: 1
+        subject:
+          type: string
+          description: 科目
+          example: "数学"
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 成绩分数
+          example: 85.5
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2025-09-12T07:20:35.890978Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+          example: "2025-09-12T07:20:35.890978Z"
+      required:
+        - id
+        - student_id
+        - teacher_id
+        - subject
+        - score
+        - created_at
+        - updated_at
+    GradeWithDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 成绩ID
+          example: 1
+        student_id:
+          type: integer
+          description: 学生ID
+          example: 1
+        student_name:
+          type: string
+          description: 学生姓名
+          example: "张三"
+        teacher_id:
+          type: integer
+          description: 老师ID
+          example: 1
+        teacher_name:
+          type: string
+          description: 老师姓名
+          example: "李老师"
+        subject:
+          type: string
+          description: 科目
+          example: "数学"
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 成绩分数
+          example: 85.5
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2025-09-12T07:20:35.890978Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+          example: "2025-09-12T07:20:35.890978Z"
+      required:
+        - id
+        - student_id
+        - student_name
+        - teacher_id
+        - teacher_name
+        - subject
+        - score
+        - created_at
+        - updated_at
+    CreateGradeRequest:
+      type: object
+      properties:
+        student_id:
+          type: integer
+          description: 学生ID
+          example: 1
+        teacher_id:
+          type: integer
+          description: 老师ID
+          example: 1
+        subject:
+          type: string
+          description: 科目
+          example: "数学"
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 成绩分数
+          example: 85.5
+      required:
+        - student_id
+        - teacher_id
+        - subject
+        - score
+    UpdateGradeRequest:
+      type: object
+      properties:
+        student_id:
+          type: integer
+          description: 学生ID
+          example: 1
+        teacher_id:
+          type: integer
+          description: 老师ID
+          example: 1
+        subject:
+          type: string
+          description: 科目
+          example: "数学"
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 成绩分数
+          example: 85.5
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 错误代码
+          example: 400
+        message:
+          type: string
+          description: 错误信息
+          example: "请求参数错误"
+tags:
+  - name: 学生管理
+    description: 学生信息的增删改查操作
+  - name: 老师管理
+    description: 老师信息的增删改查操作
+  - name: 成绩管理
+    description: 成绩信息的增删改查操作
+  - name: 系统
+    description: 系统相关接口
