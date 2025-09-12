@@ -40,13 +40,13 @@
 
 ## 状态码
 
-| 状态码 | 说明           |
-| ------ | -------------- |
-| 200    | 请求成功       |
-| 201    | 创建成功       |
-| 400    | 请求参数错误   |
-| 404    | 资源不存在     |
-| 500    | 服务器内部错误 |
+| 状态码 | 说明 |
+|--------|------|
+| 200 | 请求成功 |
+| 201 | 创建成功 |
+| 400 | 请求参数错误 |
+| 404 | 资源不存在 |
+| 500 | 服务器内部错误 |
 
 ## 分页
 
@@ -192,12 +192,12 @@
 
 ### 常见错误
 
-| 错误码 | 错误信息       | 说明               |
-| ------ | -------------- | ------------------ |
-| 1001   | 参数验证失败   | 请求参数不符合要求 |
-| 1002   | 资源不存在     | 请求的资源不存在   |
-| 1003   | 数据库操作失败 | 数据库操作异常     |
-| 1004   | 重复数据       | 尝试创建重复的数据 |
+| 错误码 | 错误信息 | 说明 |
+|--------|----------|------|
+| 1001 | 参数验证失败 | 请求参数不符合要求 |
+| 1002 | 资源不存在 | 请求的资源不存在 |
+| 1003 | 数据库操作失败 | 数据库操作异常 |
+| 1004 | 重复数据 | 尝试创建重复的数据 |
 
 ### 验证错误示例
 
@@ -215,26 +215,26 @@
 
 ```javascript
 // 获取学生列表
-fetch("http://localhost:8080/api/v1/students?page=1&limit=10")
-  .then((response) => response.json())
-  .then((data) => console.log(data));
+fetch('http://localhost:8080/api/v1/students?page=1&limit=10')
+  .then(response => response.json())
+  .then(data => console.log(data));
 
 // 创建学生
-fetch("http://localhost:8080/api/v1/students", {
-  method: "POST",
+fetch('http://localhost:8080/api/v1/students', {
+  method: 'POST',
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    name: "张三",
+    name: '张三',
     age: 20,
-    gender: "男",
-    email: "zhangsan@example.com",
-    phone: "13800138000",
-  }),
+    gender: '男',
+    email: 'zhangsan@example.com',
+    phone: '13800138000'
+  })
 })
-  .then((response) => response.json())
-  .then((data) => console.log(data));
+.then(response => response.json())
+.then(data => console.log(data));
 ```
 
 ### cURL

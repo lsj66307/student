@@ -39,23 +39,27 @@ docs/
 ### 安装和运行
 
 1. 克隆项目
+
 ```bash
 git clone <repository-url>
 cd student-management-system
 ```
 
 2. 安装依赖
+
 ```bash
 go mod download
 ```
 
 3. 配置环境
+
 ```bash
 cp configs/config.yaml.example configs/config.yaml
 # 编辑配置文件
 ```
 
 4. 运行应用
+
 ```bash
 make run
 # 或者

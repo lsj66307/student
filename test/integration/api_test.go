@@ -9,6 +9,7 @@ import (
 
 	"student-management-system/internal/domain"
 	"student-management-system/internal/handler"
+	"student-management-system/internal/repository"
 	"student-management-system/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,13 @@ import (
 
 // TestStudentAPI 测试学生API集成
 func TestStudentAPI(t *testing.T) {
+	// 检查数据库连接
+	err := repository.InitDB()
+	if err != nil {
+		t.Skipf("跳过集成测试：数据库连接失败 - %v", err)
+		return
+	}
+
 	// 设置Gin为测试模式
 	gin.SetMode(gin.TestMode)
 
@@ -41,6 +49,8 @@ func TestStudentAPI(t *testing.T) {
 			Gender: "男",
 			Email:  "test@example.com",
 			Phone:  "13800138000",
+			Major:  "计算机科学",
+			Grade:  "2024级",
 		}
 
 		jsonData, _ := json.Marshal(createReq)
@@ -50,9 +60,7 @@ func TestStudentAPI(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
-		// 这里应该检查响应状态码和内容
-		// 由于没有真实的数据库连接，这个测试会失败
-		// 在实际项目中，应该设置测试数据库
+		// 检查响应状态码
 		if w.Code != http.StatusCreated {
 			t.Logf("Expected status %d, got %d", http.StatusCreated, w.Code)
 			t.Logf("Response body: %s", w.Body.String())
@@ -124,9 +132,16 @@ func TestGradeAPI(t *testing.T) {
 	// 设置Gin为测试模式
 	gin.SetMode(gin.TestMode)
 
+	// 检查数据库连接
+	err := repository.InitDB()
+	if err != nil {
+		t.Skipf("跳过集成测试：数据库连接失败 - %v", err)
+		return
+	}
+
 	// 创建路由
 	router := gin.New()
-	gradeService := service.NewGradeService(nil)
+	gradeService := service.NewGradeService(repository.DB)
 	gradeHandler := handler.NewGradeHandler(gradeService)
 
 	// 注册路由
