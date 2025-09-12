@@ -81,51 +81,75 @@ func InitDB() error {
 
 // CreateTables 创建数据库表
 func CreateTables() error {
+	log.Println("正在创建数据库表...")
+
 	// 创建学生表
-	studentQuery := `
+	studentsTable := `
 	CREATE TABLE IF NOT EXISTS students (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(100) NOT NULL,
-		age INTEGER NOT NULL CHECK (age > 0 AND age < 150),
-		gender VARCHAR(10) NOT NULL CHECK (gender IN ('男', '女')),
-		email VARCHAR(255) UNIQUE NOT NULL,
-		phone VARCHAR(20) NOT NULL,
-		major VARCHAR(100) NOT NULL,
-		grade VARCHAR(50) NOT NULL,
+		age INTEGER,
+		gender VARCHAR(10),
+		phone VARCHAR(20),
+		email VARCHAR(100),
+		address TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 
-	_, err := DB.Exec(studentQuery)
+	_, err := DB.Exec(studentsTable)
 	if err != nil {
 		return fmt.Errorf("failed to create students table: %v", err)
 	}
 
-	// 创建老师表
-	teacherQuery := `
+	// 创建教师表
+	teachersTable := `
 	CREATE TABLE IF NOT EXISTS teachers (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(100) NOT NULL,
-		age INTEGER NOT NULL CHECK (age >= 22 AND age <= 70),
-		gender VARCHAR(10) NOT NULL CHECK (gender IN ('男', '女')),
-		email VARCHAR(255) UNIQUE NOT NULL,
-		phone VARCHAR(20) NOT NULL,
-		subject VARCHAR(100) NOT NULL,
-		title VARCHAR(50) NOT NULL,
-		department VARCHAR(100) NOT NULL,
+		subject VARCHAR(50) NOT NULL,
+		email VARCHAR(100),
+		phone VARCHAR(20),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 
-	_, err = DB.Exec(teacherQuery)
+	_, err = DB.Exec(teachersTable)
 	if err != nil {
 		return fmt.Errorf("failed to create teachers table: %v", err)
 	}
 
+	// 创建成绩表 - 简化为5个科目
+	gradesTable := `
+	DROP TABLE IF EXISTS grades CASCADE;
+	CREATE TABLE grades (
+		id SERIAL PRIMARY KEY,
+		student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+		chinese_score DECIMAL(5,2) CHECK (chinese_score >= 0 AND chinese_score <= 100),
+		math_score DECIMAL(5,2) CHECK (math_score >= 0 AND math_score <= 100),
+		english_score DECIMAL(5,2) CHECK (english_score >= 0 AND english_score <= 100),
+		sports_score DECIMAL(5,2) CHECK (sports_score >= 0 AND sports_score <= 100),
+		music_score DECIMAL(5,2) CHECK (music_score >= 0 AND music_score <= 100),
+		chinese_teacher_id INTEGER REFERENCES teachers(id),
+		math_teacher_id INTEGER REFERENCES teachers(id),
+		english_teacher_id INTEGER REFERENCES teachers(id),
+		sports_teacher_id INTEGER REFERENCES teachers(id),
+		music_teacher_id INTEGER REFERENCES teachers(id),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(student_id)
+	);
+	`
+
+	_, err = DB.Exec(gradesTable)
+	if err != nil {
+		return fmt.Errorf("failed to create grades table: %v", err)
+	}
+
 	// 创建更新时间触发器函数
-	triggerFuncSQL := `
+	updateFunction := `
 	CREATE OR REPLACE FUNCTION update_updated_at_column()
 	RETURNS TRIGGER AS $$
 	BEGIN
@@ -135,13 +159,13 @@ func CreateTables() error {
 	$$ language 'plpgsql';
 	`
 
-	_, err = DB.Exec(triggerFuncSQL)
+	_, err = DB.Exec(updateFunction)
 	if err != nil {
-		return fmt.Errorf("failed to create trigger function: %v", err)
+		return fmt.Errorf("failed to create update function: %v", err)
 	}
 
-	// 创建学生表触发器
-	studentTriggerSQL := `
+	// 为学生表创建触发器
+	studentTrigger := `
 	DROP TRIGGER IF EXISTS update_students_updated_at ON students;
 	CREATE TRIGGER update_students_updated_at
 		BEFORE UPDATE ON students
@@ -149,13 +173,13 @@ func CreateTables() error {
 		EXECUTE FUNCTION update_updated_at_column();
 	`
 
-	_, err = DB.Exec(studentTriggerSQL)
+	_, err = DB.Exec(studentTrigger)
 	if err != nil {
-		return fmt.Errorf("failed to create student trigger: %v", err)
+		return fmt.Errorf("failed to create students trigger: %v", err)
 	}
 
-	// 创建老师表触发器
-	teacherTriggerSQL := `
+	// 为教师表创建触发器
+	teacherTrigger := `
 	DROP TRIGGER IF EXISTS update_teachers_updated_at ON teachers;
 	CREATE TRIGGER update_teachers_updated_at
 		BEFORE UPDATE ON teachers
@@ -163,12 +187,26 @@ func CreateTables() error {
 		EXECUTE FUNCTION update_updated_at_column();
 	`
 
-	_, err = DB.Exec(teacherTriggerSQL)
+	_, err = DB.Exec(teacherTrigger)
 	if err != nil {
-		return fmt.Errorf("failed to create teacher trigger: %v", err)
+		return fmt.Errorf("failed to create teachers trigger: %v", err)
 	}
 
-	log.Println("Database tables created successfully")
+	// 为成绩表创建触发器
+	gradeTrigger := `
+	DROP TRIGGER IF EXISTS update_grades_updated_at ON grades;
+	CREATE TRIGGER update_grades_updated_at
+		BEFORE UPDATE ON grades
+		FOR EACH ROW
+		EXECUTE FUNCTION update_updated_at_column();
+	`
+
+	_, err = DB.Exec(gradeTrigger)
+	if err != nil {
+		return fmt.Errorf("failed to create grades trigger: %v", err)
+	}
+
+	log.Println("数据库表创建成功")
 	return nil
 }
 

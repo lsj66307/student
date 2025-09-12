@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
+	"student-management-system/database"
+	"student-management-system/models"
 )
 
 // SetupRoutes 设置所有路由
@@ -26,6 +28,10 @@ func SetupRoutes() *gin.Engine {
 	// 创建处理器
 	studentHandler := NewStudentHandler()
 	teacherHandler := NewTeacherHandler()
+	
+	// 创建成绩服务和处理器
+	gradeService := models.NewGradeService(database.DB)
+	gradeHandler := NewGradeHandler(gradeService)
 
 	// API路由组
 	api := router.Group("/api/v1")
@@ -48,6 +54,16 @@ func SetupRoutes() *gin.Engine {
 			teachers.GET("/:id", teacherHandler.GetTeacher)       // 获取单个老师
 			teachers.PUT("/:id", teacherHandler.UpdateTeacher)    // 更新老师
 			teachers.DELETE("/:id", teacherHandler.DeleteTeacher) // 删除老师
+		}
+
+		// 成绩相关路由
+		grades := api.Group("/grades")
+		{
+			grades.POST("", gradeHandler.CreateGrade)       // 创建成绩
+			grades.GET("", gradeHandler.GetGrades)          // 获取成绩列表
+			grades.GET("/:id", gradeHandler.GetGrade)       // 获取单个成绩
+			grades.PUT("/:id", gradeHandler.UpdateGrade)    // 更新成绩
+			grades.DELETE("/:id", gradeHandler.DeleteGrade) // 删除成绩
 		}
 	}
 
