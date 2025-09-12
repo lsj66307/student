@@ -81,7 +81,8 @@ func InitDB() error {
 
 // CreateTables 创建数据库表
 func CreateTables() error {
-	query := `
+	// 创建学生表
+	studentQuery := `
 	CREATE TABLE IF NOT EXISTS students (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(100) NOT NULL,
@@ -96,9 +97,31 @@ func CreateTables() error {
 	);
 	`
 
-	_, err := DB.Exec(query)
+	_, err := DB.Exec(studentQuery)
 	if err != nil {
-		return fmt.Errorf("failed to create tables: %v", err)
+		return fmt.Errorf("failed to create students table: %v", err)
+	}
+
+	// 创建老师表
+	teacherQuery := `
+	CREATE TABLE IF NOT EXISTS teachers (
+		id SERIAL PRIMARY KEY,
+		name VARCHAR(100) NOT NULL,
+		age INTEGER NOT NULL CHECK (age >= 22 AND age <= 70),
+		gender VARCHAR(10) NOT NULL CHECK (gender IN ('男', '女')),
+		email VARCHAR(255) UNIQUE NOT NULL,
+		phone VARCHAR(20) NOT NULL,
+		subject VARCHAR(100) NOT NULL,
+		title VARCHAR(50) NOT NULL,
+		department VARCHAR(100) NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+
+	_, err = DB.Exec(teacherQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create teachers table: %v", err)
 	}
 
 	// 创建更新时间触发器函数
@@ -117,8 +140,8 @@ func CreateTables() error {
 		return fmt.Errorf("failed to create trigger function: %v", err)
 	}
 
-	// 创建触发器
-	triggerSQL := `
+	// 创建学生表触发器
+	studentTriggerSQL := `
 	DROP TRIGGER IF EXISTS update_students_updated_at ON students;
 	CREATE TRIGGER update_students_updated_at
 		BEFORE UPDATE ON students
@@ -126,9 +149,23 @@ func CreateTables() error {
 		EXECUTE FUNCTION update_updated_at_column();
 	`
 
-	_, err = DB.Exec(triggerSQL)
+	_, err = DB.Exec(studentTriggerSQL)
 	if err != nil {
-		return fmt.Errorf("failed to create trigger: %v", err)
+		return fmt.Errorf("failed to create student trigger: %v", err)
+	}
+
+	// 创建老师表触发器
+	teacherTriggerSQL := `
+	DROP TRIGGER IF EXISTS update_teachers_updated_at ON teachers;
+	CREATE TRIGGER update_teachers_updated_at
+		BEFORE UPDATE ON teachers
+		FOR EACH ROW
+		EXECUTE FUNCTION update_updated_at_column();
+	`
+
+	_, err = DB.Exec(teacherTriggerSQL)
+	if err != nil {
+		return fmt.Errorf("failed to create teacher trigger: %v", err)
 	}
 
 	log.Println("Database tables created successfully")

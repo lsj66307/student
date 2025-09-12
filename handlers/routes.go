@@ -23,8 +23,9 @@ func SetupRoutes() *gin.Engine {
 		c.Next()
 	})
 
-	// 创建学生处理器
+	// 创建处理器
 	studentHandler := NewStudentHandler()
+	teacherHandler := NewTeacherHandler()
 
 	// API路由组
 	api := router.Group("/api/v1")
@@ -37,6 +38,16 @@ func SetupRoutes() *gin.Engine {
 			students.GET("/:id", studentHandler.GetStudent)       // 获取单个学生
 			students.PUT("/:id", studentHandler.UpdateStudent)    // 更新学生
 			students.DELETE("/:id", studentHandler.DeleteStudent) // 删除学生
+		}
+
+		// 老师相关路由
+		teachers := api.Group("/teachers")
+		{
+			teachers.POST("", teacherHandler.CreateTeacher)       // 创建老师
+			teachers.GET("", teacherHandler.GetTeachers)          // 获取老师列表
+			teachers.GET("/:id", teacherHandler.GetTeacher)       // 获取单个老师
+			teachers.PUT("/:id", teacherHandler.UpdateTeacher)    // 更新老师
+			teachers.DELETE("/:id", teacherHandler.DeleteTeacher) // 删除老师
 		}
 	}
 
