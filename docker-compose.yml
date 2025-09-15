@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # 应用程序服务
@@ -12,69 +12,61 @@ services:
     environment:
       - GIN_MODE=release
       - APP_CONFIG=/root/configs/config.yaml
-      - DB_HOST=postgres
+      - DB_HOST=192.168.31.114
       - DB_PORT=5432
       - DB_USER=student_user
       - DB_PASSWORD=student_password
-      - DB_NAME=student_management
-      - REDIS_HOST=redis
+      - DB_NAME=student_db
+      - REDIS_HOST=192.168.31.114
       - REDIS_PORT=6379
-    depends_on:
-      - postgres
-      - redis
+    # 使用外部数据库服务器 192.168.31.114
+    # depends_on:
+    #   - postgres
     networks:
       - student-network
     restart: unless-stopped
     volumes:
       - ./logs:/root/logs
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # PostgreSQL 数据库服务
-  postgres:
-    image: postgres:15-alpine
-    container_name: student-postgres
-    environment:
-      - POSTGRES_DB=student_management
-      - POSTGRES_USER=student_user
-      - POSTGRES_PASSWORD=student_password
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    networks:
-      - student-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U student_user -d student_management"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # PostgreSQL服务运行在外部服务器 192.168.31.114:5432
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: student-postgres
+  #   environment:
+  #     - POSTGRES_DB=student_management
+  #     - POSTGRES_USER=student_user
+  #     - POSTGRES_PASSWORD=student_password
+  #     - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  #   networks:
+  #     - student-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U student_user -d student_management"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
-  # Redis 缓存服务
-  redis:
-    image: redis:7-alpine
-    container_name: student-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-      - ./configs/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: redis-server /usr/local/etc/redis/redis.conf
-    networks:
-      - student-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
+  # Redis 缓存服务 - 使用外部Redis (192.168.31.114)
+  # redis服务已移除，使用外部Redis服务器
 
   # Nginx 反向代理（可选）
   nginx:
@@ -104,8 +96,9 @@ services:
       - PGADMIN_CONFIG_SERVER_MODE=False
     ports:
       - "5050:80"
-    depends_on:
-      - postgres
+    # 连接到外部PostgreSQL服务器 192.168.31.114:5432
+    # depends_on:
+    #   - postgres
     networks:
       - student-network
     restart: unless-stopped
@@ -113,13 +106,12 @@ services:
       - development
 
   # Redis 管理工具 RedisInsight（开发环境）
+  # 注意：连接到外部Redis服务器 192.168.31.114:6379
   redis-insight:
     image: redislabs/redisinsight:latest
     container_name: student-redis-insight
     ports:
       - "8001:8001"
-    depends_on:
-      - redis
     networks:
       - student-network
     restart: unless-stopped
@@ -136,7 +128,6 @@ networks:
 
 # 数据卷配置
 volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
+  # 使用外部数据库和Redis服务器 192.168.31.114
+  # postgres_data:
+  # redis_data:

@@ -1,14 +1,16 @@
 package handler
 
 import (
+	"student-management-system/internal/config"
 	"student-management-system/internal/repository"
 	"student-management-system/internal/service"
+	"student-management-system/pkg/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 // SetupRoutes 设置所有路由
-func SetupRoutes() *gin.Engine {
+func SetupRoutes(cfg *config.Config) *gin.Engine {
 	// 创建Gin引擎
 	router := gin.Default()
 
@@ -26,7 +28,7 @@ func SetupRoutes() *gin.Engine {
 		c.Next()
 	})
 
-	// 创建处理器
+	// 创建服务和处理器
 	studentHandler := NewStudentHandler()
 	teacherHandler := NewTeacherHandler()
 
@@ -34,37 +36,57 @@ func SetupRoutes() *gin.Engine {
 	gradeService := service.NewGradeService(repository.DB)
 	gradeHandler := NewGradeHandler(gradeService)
 
+	// 创建认证服务和处理器
+	authService := service.NewAuthService(cfg)
+	authHandler := NewAuthHandler(authService)
+
 	// API路由组
 	api := router.Group("/api/v1")
 	{
-		// 学生相关路由
-		students := api.Group("/students")
+		// 认证相关路由（无需认证）
+		auth := api.Group("/auth")
 		{
-			students.POST("", studentHandler.CreateStudent)       // 创建学生
-			students.GET("", studentHandler.GetStudents)          // 获取学生列表
-			students.GET("/:id", studentHandler.GetStudent)       // 获取单个学生
-			students.PUT("/:id", studentHandler.UpdateStudent)    // 更新学生
-			students.DELETE("/:id", studentHandler.DeleteStudent) // 删除学生
+			auth.POST("/login", authHandler.Login)           // 管理员登录
+			auth.POST("/validate", authHandler.ValidateToken) // 验证token
 		}
 
-		// 老师相关路由
-		teachers := api.Group("/teachers")
+		// 需要认证的路由组
+		protected := api.Group("")
+		protected.Use(middleware.JWTAuth()) // 应用JWT认证中间件
 		{
-			teachers.POST("", teacherHandler.CreateTeacher)       // 创建老师
-			teachers.GET("", teacherHandler.GetTeachers)          // 获取老师列表
-			teachers.GET("/:id", teacherHandler.GetTeacher)       // 获取单个老师
-			teachers.PUT("/:id", teacherHandler.UpdateTeacher)    // 更新老师
-			teachers.DELETE("/:id", teacherHandler.DeleteTeacher) // 删除老师
-		}
+			// 认证用户信息路由
+			protected.GET("/auth/profile", authHandler.GetProfile)     // 获取当前管理员信息
+			protected.POST("/auth/refresh", authHandler.RefreshToken) // 刷新token
 
-		// 成绩相关路由
-		grades := api.Group("/grades")
-		{
-			grades.POST("", gradeHandler.CreateGrade)       // 创建成绩
-			grades.GET("", gradeHandler.GetGrades)          // 获取成绩列表
-			grades.GET("/:id", gradeHandler.GetGrade)       // 获取单个成绩
-			grades.PUT("/:id", gradeHandler.UpdateGrade)    // 更新成绩
-			grades.DELETE("/:id", gradeHandler.DeleteGrade) // 删除成绩
+			// 学生相关路由（需要认证）
+			students := protected.Group("/students")
+			{
+				students.POST("", studentHandler.CreateStudent)       // 创建学生
+				students.GET("", studentHandler.GetStudents)          // 获取学生列表
+				students.GET("/:id", studentHandler.GetStudent)       // 获取单个学生
+				students.PUT("/:id", studentHandler.UpdateStudent)    // 更新学生
+				students.DELETE("/:id", studentHandler.DeleteStudent) // 删除学生
+			}
+
+			// 老师相关路由（需要认证）
+			teachers := protected.Group("/teachers")
+			{
+				teachers.POST("", teacherHandler.CreateTeacher)       // 创建老师
+				teachers.GET("", teacherHandler.GetTeachers)          // 获取老师列表
+				teachers.GET("/:id", teacherHandler.GetTeacher)       // 获取单个老师
+				teachers.PUT("/:id", teacherHandler.UpdateTeacher)    // 更新老师
+				teachers.DELETE("/:id", teacherHandler.DeleteTeacher) // 删除老师
+			}
+
+			// 成绩相关路由（需要认证）
+			grades := protected.Group("/grades")
+			{
+				grades.POST("", gradeHandler.CreateGrade)       // 创建成绩
+				grades.GET("", gradeHandler.GetGrades)          // 获取成绩列表
+				grades.GET("/:id", gradeHandler.GetGrade)       // 获取单个成绩
+				grades.PUT("/:id", gradeHandler.UpdateGrade)    // 更新成绩
+				grades.DELETE("/:id", gradeHandler.DeleteGrade) // 删除成绩
+			}
 		}
 	}
 
@@ -83,11 +105,17 @@ func SetupRoutes() *gin.Engine {
 			"version": "1.0.0",
 			"endpoints": gin.H{
 				"health":         "GET /health",
-				"create_student": "POST /api/students",
-				"get_students":   "GET /api/students",
-				"get_student":    "GET /api/students/{id}",
-				"update_student": "PUT /api/students/{id}",
-				"delete_student": "DELETE /api/students/{id}",
+				"login":          "POST /api/v1/auth/login",
+				"profile":        "GET /api/v1/auth/profile (需要认证)",
+				"create_student": "POST /api/v1/students (需要认证)",
+				"get_students":   "GET /api/v1/students (需要认证)",
+				"get_student":    "GET /api/v1/students/{id} (需要认证)",
+				"update_student": "PUT /api/v1/students/{id} (需要认证)",
+				"delete_student": "DELETE /api/v1/students/{id} (需要认证)",
+				"create_teacher": "POST /api/v1/teachers (需要认证)",
+				"get_teachers":   "GET /api/v1/teachers (需要认证)",
+				"create_grade":   "POST /api/v1/grades (需要认证)",
+				"get_grades":     "GET /api/v1/grades (需要认证)",
 			},
 		})
 	})

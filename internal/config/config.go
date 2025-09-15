@@ -13,6 +13,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Log      LogConfig      `mapstructure:"log"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	Redis    RedisConfig    `mapstructure:"redis"`
 	Server   ServerConfig   `mapstructure:"server"`
 	CORS     CORSConfig     `mapstructure:"cors"`
 }
@@ -57,6 +58,16 @@ type JWTConfig struct {
 	Secret    string        `mapstructure:"secret"`
 	ExpiresIn time.Duration `mapstructure:"expires_in"`
 	Issuer    string        `mapstructure:"issuer"`
+}
+
+// RedisConfig Redis配置
+type RedisConfig struct {
+	Host         string `mapstructure:"host"`
+	Port         int    `mapstructure:"port"`
+	Password     string `mapstructure:"password"`
+	DB           int    `mapstructure:"db"`
+	PoolSize     int    `mapstructure:"pool_size"`
+	MinIdleConns int    `mapstructure:"min_idle_conns"`
 }
 
 // ServerConfig 服务器配置

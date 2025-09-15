@@ -1,15 +1,356 @@
 openapi: 3.0.3
 info:
   title: 学生管理系统 API
-  description: 基于Go和Gin框架的学生管理系统RESTful API
+  description: 基于Go和Gin框架的学生管理系统RESTful API，提供学生、教师和成绩管理功能
   version: 1.0.0
   contact:
     name: 学生管理系统
     email: admin@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
 servers:
   - url: http://localhost:3060
     description: 本地开发服务器
+  - url: https://api.student-system.com
+    description: 生产环境服务器
+
+tags:
+  - name: 系统
+    description: 系统相关接口
+  - name: 认证
+    description: 管理员认证相关接口
+  - name: 学生管理
+    description: 学生信息管理相关接口
+  - name: 教师管理
+    description: 教师信息管理相关接口
+  - name: 成绩管理
+    description: 学生成绩管理相关接口
+
 paths:
+  /:
+    get:
+      summary: 系统欢迎页面
+      description: 获取系统基本信息和可用端点
+      tags:
+        - 系统
+      responses:
+        '200':
+          description: 成功获取系统信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "欢迎使用学生管理系统API"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  endpoints:
+                    type: object
+
+  /health:
+    get:
+      summary: 健康检查
+      description: 检查系统运行状态
+      tags:
+        - 系统
+      responses:
+        '200':
+          description: 系统运行正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  message:
+                    type: string
+                    example: "学生管理系统运行正常"
+
+  /api/v1/auth/login:
+    post:
+      summary: 管理员登录
+      description: 使用用户名和密码进行管理员登录，返回JWT token
+      tags:
+        - 认证
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: "admin"
+                  description: "管理员用户名"
+                password:
+                  type: string
+                  example: "123456"
+                  description: "管理员密码"
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    description: "JWT访问令牌"
+                  expires_in:
+                    type: integer
+                    example: 86400
+                    description: "令牌过期时间（秒）"
+                  admin:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "admin"
+                      username:
+                        type: string
+                        example: "admin"
+                      role:
+                        type: string
+                        example: "admin"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid request format"
+                  message:
+                    type: string
+                    example: "请求格式错误"
+        '401':
+          description: 用户名或密码错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Authentication failed"
+                  message:
+                    type: string
+                    example: "Invalid username or password"
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Login failed"
+                  message:
+                    type: string
+                    example: "服务器内部错误"
+
+  /api/v1/auth/profile:
+    get:
+      summary: 获取当前管理员信息
+      description: 根据JWT token获取当前登录的管理员信息
+      tags:
+        - 认证
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功获取管理员信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "admin"
+                  username:
+                    type: string
+                    example: "admin"
+                  role:
+                    type: string
+                    example: "admin"
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Unauthorized"
+                  message:
+                    type: string
+                    example: "Invalid or missing token"
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Internal error"
+                  message:
+                    type: string
+                    example: "服务器内部错误"
+
+  /api/v1/auth/refresh:
+    post:
+      summary: 刷新JWT token
+      description: 使用当前有效的JWT token获取新的token
+      tags:
+        - 认证
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功刷新token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    description: "新的JWT访问令牌"
+                  expires_in:
+                    type: integer
+                    example: 86400
+                    description: "令牌过期时间（秒）"
+                  admin:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "admin"
+                      username:
+                        type: string
+                        example: "admin"
+                      role:
+                        type: string
+                        example: "admin"
+        '400':
+          description: token不需要刷新
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Refresh failed"
+                  message:
+                    type: string
+                    example: "Token不需要刷新"
+        '401':
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Unauthorized"
+                  message:
+                    type: string
+                    example: "Invalid or missing token"
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Internal error"
+                  message:
+                    type: string
+                    example: "服务器内部错误"
+
+  /api/v1/auth/validate:
+    post:
+      summary: 验证JWT token
+      description: 验证JWT token的有效性
+      tags:
+        - 认证
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+            example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          description: "Bearer token"
+      responses:
+        '200':
+          description: token有效，返回管理员信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "admin"
+                  username:
+                    type: string
+                    example: "admin"
+                  role:
+                    type: string
+                    example: "admin"
+        '401':
+          description: token无效
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid token"
+                  message:
+                    type: string
+                    example: "Token无效或已过期"
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Internal error"
+                  message:
+                    type: string
+                    example: "服务器内部错误"
+
   /api/v1/students:
     get:
       summary: 获取学生列表
@@ -35,7 +376,7 @@ paths:
             minimum: 1
             maximum: 100
       responses:
-        "200":
+        '200':
           description: 成功获取学生列表
           content:
             application/json:
@@ -49,24 +390,24 @@ paths:
                     type: string
                     example: "获取成功"
                   data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Student"
-                  total:
-                    type: integer
-                    example: 10
-                  page:
-                    type: integer
-                    example: 1
-                  size:
-                    type: integer
-                    example: 10
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    type: object
+                    properties:
+                      students:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Student'
+                      total:
+                        type: integer
+                        example: 100
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 10
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     post:
       summary: 创建学生
       description: 创建新的学生记录
@@ -77,9 +418,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateStudentRequest"
+              $ref: '#/components/schemas/CreateStudentRequest'
       responses:
-        "201":
+        '201':
           description: 学生创建成功
           content:
             application/json:
@@ -93,23 +434,16 @@ paths:
                     type: string
                     example: "学生创建成功"
                   data:
-                    $ref: "#/components/schemas/Student"
-        "400":
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Student'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /api/v1/students/{id}:
     get:
-      summary: 获取单个学生信息
-      description: 根据学生ID获取详细信息
+      summary: 获取单个学生
+      description: 根据ID获取学生详细信息
       tags:
         - 学生管理
       parameters:
@@ -119,9 +453,9 @@ paths:
           description: 学生ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
-        "200":
+        '200':
           description: 成功获取学生信息
           content:
             application/json:
@@ -135,22 +469,15 @@ paths:
                     type: string
                     example: "获取成功"
                   data:
-                    $ref: "#/components/schemas/Student"
-        "404":
-          description: 学生不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Student'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     put:
       summary: 更新学生信息
-      description: 根据学生ID更新学生信息
+      description: 根据ID更新学生信息
       tags:
         - 学生管理
       parameters:
@@ -160,15 +487,15 @@ paths:
           description: 学生ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateStudentRequest"
+              $ref: '#/components/schemas/UpdateStudentRequest'
       responses:
-        "200":
+        '200':
           description: 学生信息更新成功
           content:
             application/json:
@@ -182,28 +509,17 @@ paths:
                     type: string
                     example: "更新成功"
                   data:
-                    $ref: "#/components/schemas/Student"
-        "400":
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: 学生不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Student'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     delete:
       summary: 删除学生
-      description: 根据学生ID删除学生记录
+      description: 根据ID删除学生记录
       tags:
         - 学生管理
       parameters:
@@ -213,9 +529,9 @@ paths:
           description: 学生ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
-        "200":
+        '200':
           description: 学生删除成功
           content:
             application/json:
@@ -228,24 +544,17 @@ paths:
                   message:
                     type: string
                     example: "删除成功"
-        "404":
-          description: 学生不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /api/v1/teachers:
     get:
-      summary: 获取老师列表
-      description: 分页获取所有老师信息
+      summary: 获取教师列表
+      description: 分页获取所有教师信息
       tags:
-        - 老师管理
+        - 教师管理
       parameters:
         - name: page
           in: query
@@ -265,8 +574,8 @@ paths:
             minimum: 1
             maximum: 100
       responses:
-        "200":
-          description: 成功获取老师列表
+        '200':
+          description: 成功获取教师列表
           content:
             application/json:
               schema:
@@ -279,38 +588,38 @@ paths:
                     type: string
                     example: "获取成功"
                   data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Teacher"
-                  total:
-                    type: integer
-                    example: 10
-                  page:
-                    type: integer
-                    example: 1
-                  size:
-                    type: integer
-                    example: 10
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    type: object
+                    properties:
+                      teachers:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Teacher'
+                      total:
+                        type: integer
+                        example: 50
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 10
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     post:
-      summary: 创建老师
-      description: 创建新的老师记录
+      summary: 创建教师
+      description: 创建新的教师记录
       tags:
-        - 老师管理
+        - 教师管理
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateTeacherRequest"
+              $ref: '#/components/schemas/CreateTeacherRequest'
       responses:
-        "201":
-          description: 老师创建成功
+        '201':
+          description: 教师创建成功
           content:
             application/json:
               schema:
@@ -321,38 +630,31 @@ paths:
                     example: 201
                   message:
                     type: string
-                    example: "老师创建成功"
+                    example: "教师创建成功"
                   data:
-                    $ref: "#/components/schemas/Teacher"
-        "400":
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Teacher'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /api/v1/teachers/{id}:
     get:
-      summary: 获取老师详情
-      description: 根据老师ID获取老师详细信息
+      summary: 获取单个教师
+      description: 根据ID获取教师详细信息
       tags:
-        - 老师管理
+        - 教师管理
       parameters:
         - name: id
           in: path
           required: true
-          description: 老师ID
+          description: 教师ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
-        "200":
-          description: 成功获取老师信息
+        '200':
+          description: 成功获取教师信息
           content:
             application/json:
               schema:
@@ -365,41 +667,34 @@ paths:
                     type: string
                     example: "获取成功"
                   data:
-                    $ref: "#/components/schemas/Teacher"
-        "404":
-          description: 老师不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Teacher'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     put:
-      summary: 更新老师信息
-      description: 根据老师ID更新老师信息
+      summary: 更新教师信息
+      description: 根据ID更新教师信息
       tags:
-        - 老师管理
+        - 教师管理
       parameters:
         - name: id
           in: path
           required: true
-          description: 老师ID
+          description: 教师ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateTeacherRequest"
+              $ref: '#/components/schemas/UpdateTeacherRequest'
       responses:
-        "200":
-          description: 老师信息更新成功
+        '200':
+          description: 教师信息更新成功
           content:
             application/json:
               schema:
@@ -412,41 +707,30 @@ paths:
                     type: string
                     example: "更新成功"
                   data:
-                    $ref: "#/components/schemas/Teacher"
-        "400":
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: 老师不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Teacher'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     delete:
-      summary: 删除老师
-      description: 根据老师ID删除老师记录
+      summary: 删除教师
+      description: 根据ID删除教师记录
       tags:
-        - 老师管理
+        - 教师管理
       parameters:
         - name: id
           in: path
           required: true
-          description: 老师ID
+          description: 教师ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
-        "200":
-          description: 老师删除成功
+        '200':
+          description: 教师删除成功
           content:
             application/json:
               schema:
@@ -458,25 +742,25 @@ paths:
                   message:
                     type: string
                     example: "删除成功"
-        "404":
-          description: 老师不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /api/v1/grades:
     get:
       summary: 获取成绩列表
-      description: 分页获取所有成绩信息
+      description: 分页获取成绩信息，支持按学生ID筛选
       tags:
         - 成绩管理
       parameters:
+        - name: student_id
+          in: query
+          description: 学生ID（可选，用于筛选特定学生的成绩）
+          required: false
+          schema:
+            type: integer
+            example: 1
         - name: page
           in: query
           description: 页码
@@ -494,26 +778,8 @@ paths:
             default: 10
             minimum: 1
             maximum: 100
-        - name: student_id
-          in: query
-          description: 学生ID筛选
-          required: false
-          schema:
-            type: integer
-        - name: teacher_id
-          in: query
-          description: 老师ID筛选
-          required: false
-          schema:
-            type: integer
-        - name: subject
-          in: query
-          description: 科目筛选
-          required: false
-          schema:
-            type: string
       responses:
-        "200":
+        '200':
           description: 成功获取成绩列表
           content:
             application/json:
@@ -527,27 +793,27 @@ paths:
                     type: string
                     example: "获取成功"
                   data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/GradeWithDetails"
-                  total:
-                    type: integer
-                    example: 10
-                  page:
-                    type: integer
-                    example: 1
-                  size:
-                    type: integer
-                    example: 10
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    type: object
+                    properties:
+                      grades:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/GradeWithDetails'
+                      total:
+                        type: integer
+                        example: 80
+                      page:
+                        type: integer
+                        example: 1
+                      size:
+                        type: integer
+                        example: 10
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     post:
       summary: 创建成绩
-      description: 添加新的成绩记录
+      description: 为学生创建成绩记录
       tags:
         - 成绩管理
       requestBody:
@@ -555,9 +821,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateGradeRequest"
+              $ref: '#/components/schemas/CreateGradeRequest'
       responses:
-        "201":
+        '201':
           description: 成绩创建成功
           content:
             application/json:
@@ -569,25 +835,18 @@ paths:
                     example: 201
                   message:
                     type: string
-                    example: "创建成功"
+                    example: "成绩创建成功"
                   data:
-                    $ref: "#/components/schemas/Grade"
-        "400":
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Grade'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /api/v1/grades/{id}:
     get:
       summary: 获取单个成绩
-      description: 根据成绩ID获取成绩详细信息
+      description: 根据ID获取成绩详细信息
       tags:
         - 成绩管理
       parameters:
@@ -597,9 +856,9 @@ paths:
           description: 成绩ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
-        "200":
+        '200':
           description: 成功获取成绩信息
           content:
             application/json:
@@ -613,22 +872,15 @@ paths:
                     type: string
                     example: "获取成功"
                   data:
-                    $ref: "#/components/schemas/GradeWithDetails"
-        "404":
-          description: 成绩不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/GradeWithDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     put:
-      summary: 更新成绩
-      description: 根据成绩ID更新成绩信息
+      summary: 更新成绩信息
+      description: 根据ID更新成绩信息
       tags:
         - 成绩管理
       parameters:
@@ -638,16 +890,16 @@ paths:
           description: 成绩ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateGradeRequest"
+              $ref: '#/components/schemas/UpdateGradeRequest'
       responses:
-        "200":
-          description: 成绩更新成功
+        '200':
+          description: 成绩信息更新成功
           content:
             application/json:
               schema:
@@ -660,28 +912,17 @@ paths:
                     type: string
                     example: "更新成功"
                   data:
-                    $ref: "#/components/schemas/Grade"
-        "400":
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: 成绩不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                    $ref: '#/components/schemas/Grade'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     delete:
       summary: 删除成绩
-      description: 根据成绩ID删除成绩记录
+      description: 根据ID删除成绩记录
       tags:
         - 成绩管理
       parameters:
@@ -691,9 +932,9 @@ paths:
           description: 成绩ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
-        "200":
+        '200':
           description: 成绩删除成功
           content:
             application/json:
@@ -706,51 +947,11 @@ paths:
                   message:
                     type: string
                     example: "删除成功"
-        "404":
-          description: 成绩不存在
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /health:
-    get:
-      summary: 健康检查
-      description: 检查服务器运行状态
-      tags:
-        - 系统
-      responses:
-        "200":
-          description: 服务器运行正常
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "ok"
-                  message:
-                    type: string
-                    example: "学生管理系统运行正常"
-  /:
-    get:
-      summary: API文档首页
-      description: 获取API文档和使用说明
-      tags:
-        - 系统
-      responses:
-        "200":
-          description: API文档页面
-          content:
-            text/html:
-              schema:
-                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   schemas:
     Student:
@@ -766,42 +967,42 @@ components:
           example: "张三"
         age:
           type: integer
-          description: 学生年龄
+          description: 年龄
           example: 20
         gender:
           type: string
-          description: 学生性别
+          description: 性别
           enum: ["男", "女"]
           example: "男"
         email:
           type: string
           format: email
-          description: 学生邮箱
+          description: 邮箱地址
           example: "zhangsan@example.com"
         phone:
           type: string
-          description: 学生电话
+          description: 手机号码
           example: "13800138000"
         major:
           type: string
-          description: 学生专业
-          example: "计算机科学"
+          description: 专业
+          example: "计算机科学与技术"
         grade:
           type: string
-          description: 学生年级
-          example: "大一"
+          description: 年级
+          example: "2024级"
         created_at:
           type: string
           format: date-time
           description: 创建时间
-          example: "2025-09-12T07:20:35.890978Z"
         updated_at:
           type: string
           format: date-time
           description: 更新时间
-          example: "2025-09-12T07:20:35.890978Z"
+
+    CreateStudentRequest:
+      type: object
       required:
-        - id
         - name
         - age
         - gender
@@ -809,10 +1010,6 @@ components:
         - phone
         - major
         - grade
-        - created_at
-        - updated_at
-    CreateStudentRequest:
-      type: object
       properties:
         name:
           type: string
@@ -822,38 +1019,31 @@ components:
           type: integer
           minimum: 1
           maximum: 150
-          description: 学生年龄
+          description: 年龄
           example: 20
         gender:
           type: string
           enum: ["男", "女"]
-          description: 学生性别
+          description: 性别
           example: "男"
         email:
           type: string
           format: email
-          description: 学生邮箱
+          description: 邮箱地址
           example: "zhangsan@example.com"
         phone:
           type: string
-          description: 学生电话
+          description: 手机号码
           example: "13800138000"
         major:
           type: string
-          description: 学生专业
-          example: "计算机科学"
+          description: 专业
+          example: "计算机科学与技术"
         grade:
           type: string
-          description: 学生年级
-          example: "大一"
-      required:
-        - name
-        - age
-        - gender
-        - email
-        - phone
-        - major
-        - grade
+          description: 年级
+          example: "2024级"
+
     UpdateStudentRequest:
       type: object
       properties:
@@ -865,58 +1055,59 @@ components:
           type: integer
           minimum: 1
           maximum: 150
-          description: 学生年龄
+          description: 年龄
           example: 20
         gender:
           type: string
           enum: ["男", "女"]
-          description: 学生性别
+          description: 性别
           example: "男"
         email:
           type: string
           format: email
-          description: 学生邮箱
+          description: 邮箱地址
           example: "zhangsan@example.com"
         phone:
           type: string
-          description: 学生电话
+          description: 手机号码
           example: "13800138000"
         major:
           type: string
-          description: 学生专业
-          example: "计算机科学"
+          description: 专业
+          example: "计算机科学与技术"
         grade:
           type: string
-          description: 学生年级
-          example: "大一"
+          description: 年级
+          example: "2024级"
+
     Teacher:
       type: object
       properties:
         id:
           type: integer
-          description: 老师ID
+          description: 教师ID
           example: 1
         name:
           type: string
-          description: 老师姓名
+          description: 教师姓名
           example: "李老师"
         age:
           type: integer
-          description: 老师年龄
+          description: 年龄
           example: 35
         gender:
           type: string
-          description: 老师性别
+          description: 性别
           enum: ["男", "女"]
           example: "女"
         email:
           type: string
           format: email
-          description: 老师邮箱
+          description: 邮箱地址
           example: "li.teacher@example.com"
         phone:
           type: string
-          description: 老师电话
+          description: 手机号码
           example: "13900139000"
         subject:
           type: string
@@ -926,18 +1117,22 @@ components:
           type: string
           description: 职称
           example: "副教授"
+        department:
+          type: string
+          description: 所属院系
+          example: "数学系"
         created_at:
           type: string
           format: date-time
           description: 创建时间
-          example: "2025-09-12T07:20:35.890978Z"
         updated_at:
           type: string
           format: date-time
           description: 更新时间
-          example: "2025-09-12T07:20:35.890978Z"
+
+    CreateTeacherRequest:
+      type: object
       required:
-        - id
         - name
         - age
         - gender
@@ -945,34 +1140,31 @@ components:
         - phone
         - subject
         - title
-        - created_at
-        - updated_at
-    CreateTeacherRequest:
-      type: object
+        - department
       properties:
         name:
           type: string
-          description: 老师姓名
+          description: 教师姓名
           example: "李老师"
         age:
           type: integer
-          minimum: 1
-          maximum: 150
-          description: 老师年龄
+          minimum: 22
+          maximum: 70
+          description: 年龄
           example: 35
         gender:
           type: string
           enum: ["男", "女"]
-          description: 老师性别
+          description: 性别
           example: "女"
         email:
           type: string
           format: email
-          description: 老师邮箱
+          description: 邮箱地址
           example: "li.teacher@example.com"
         phone:
           type: string
-          description: 老师电话
+          description: 手机号码
           example: "13900139000"
         subject:
           type: string
@@ -982,40 +1174,37 @@ components:
           type: string
           description: 职称
           example: "副教授"
-      required:
-        - name
-        - age
-        - gender
-        - email
-        - phone
-        - subject
-        - title
+        department:
+          type: string
+          description: 所属院系
+          example: "数学系"
+
     UpdateTeacherRequest:
       type: object
       properties:
         name:
           type: string
-          description: 老师姓名
+          description: 教师姓名
           example: "李老师"
         age:
           type: integer
-          minimum: 1
-          maximum: 150
-          description: 老师年龄
+          minimum: 22
+          maximum: 70
+          description: 年龄
           example: 35
         gender:
           type: string
           enum: ["男", "女"]
-          description: 老师性别
+          description: 性别
           example: "女"
         email:
           type: string
           format: email
-          description: 老师邮箱
+          description: 邮箱地址
           example: "li.teacher@example.com"
         phone:
           type: string
-          description: 老师电话
+          description: 手机号码
           example: "13900139000"
         subject:
           type: string
@@ -1025,6 +1214,11 @@ components:
           type: string
           description: 职称
           example: "副教授"
+        department:
+          type: string
+          description: 所属院系
+          example: "数学系"
+
     Grade:
       type: object
       properties:
@@ -1036,159 +1230,313 @@ components:
           type: integer
           description: 学生ID
           example: 1
-        teacher_id:
-          type: integer
-          description: 老师ID
-          example: 1
-        subject:
-          type: string
-          description: 科目
-          example: "数学"
-        score:
+        chinese_score:
           type: number
           format: float
           minimum: 0
           maximum: 100
-          description: 成绩分数
+          description: 语文成绩
           example: 85.5
+          nullable: true
+        math_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 数学成绩
+          example: 90.0
+          nullable: true
+        english_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 英语成绩
+          example: 88.0
+          nullable: true
+        sports_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 体育成绩
+          example: 92.0
+          nullable: true
+        music_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 音乐成绩
+          example: 87.0
+          nullable: true
+        chinese_teacher_id:
+          type: integer
+          description: 语文老师ID
+          example: 1
+          nullable: true
+        math_teacher_id:
+          type: integer
+          description: 数学老师ID
+          example: 2
+          nullable: true
+        english_teacher_id:
+          type: integer
+          description: 英语老师ID
+          example: 3
+          nullable: true
+        sports_teacher_id:
+          type: integer
+          description: 体育老师ID
+          example: 4
+          nullable: true
+        music_teacher_id:
+          type: integer
+          description: 音乐老师ID
+          example: 5
+          nullable: true
         created_at:
           type: string
           format: date-time
           description: 创建时间
-          example: "2025-09-12T07:20:35.890978Z"
         updated_at:
           type: string
           format: date-time
           description: 更新时间
-          example: "2025-09-12T07:20:35.890978Z"
-      required:
-        - id
-        - student_id
-        - teacher_id
-        - subject
-        - score
-        - created_at
-        - updated_at
+
     GradeWithDetails:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: 成绩ID
-          example: 1
-        student_id:
-          type: integer
-          description: 学生ID
-          example: 1
-        student_name:
-          type: string
-          description: 学生姓名
-          example: "张三"
-        teacher_id:
-          type: integer
-          description: 老师ID
-          example: 1
-        teacher_name:
-          type: string
-          description: 老师姓名
-          example: "李老师"
-        subject:
-          type: string
-          description: 科目
-          example: "数学"
-        score:
-          type: number
-          format: float
-          minimum: 0
-          maximum: 100
-          description: 成绩分数
-          example: 85.5
-        created_at:
-          type: string
-          format: date-time
-          description: 创建时间
-          example: "2025-09-12T07:20:35.890978Z"
-        updated_at:
-          type: string
-          format: date-time
-          description: 更新时间
-          example: "2025-09-12T07:20:35.890978Z"
-      required:
-        - id
-        - student_id
-        - student_name
-        - teacher_id
-        - teacher_name
-        - subject
-        - score
-        - created_at
-        - updated_at
+      allOf:
+        - $ref: '#/components/schemas/Grade'
+        - type: object
+          properties:
+            student_name:
+              type: string
+              description: 学生姓名
+              example: "张三"
+            chinese_teacher_name:
+              type: string
+              description: 语文老师姓名
+              example: "王老师"
+              nullable: true
+            math_teacher_name:
+              type: string
+              description: 数学老师姓名
+              example: "李老师"
+              nullable: true
+            english_teacher_name:
+              type: string
+              description: 英语老师姓名
+              example: "赵老师"
+              nullable: true
+            sports_teacher_name:
+              type: string
+              description: 体育老师姓名
+              example: "刘老师"
+              nullable: true
+            music_teacher_name:
+              type: string
+              description: 音乐老师姓名
+              example: "陈老师"
+              nullable: true
+
     CreateGradeRequest:
       type: object
+      required:
+        - student_id
       properties:
         student_id:
           type: integer
           description: 学生ID
           example: 1
-        teacher_id:
-          type: integer
-          description: 老师ID
-          example: 1
-        subject:
-          type: string
-          description: 科目
-          example: "数学"
-        score:
+        chinese_score:
           type: number
           format: float
           minimum: 0
           maximum: 100
-          description: 成绩分数
+          description: 语文成绩
           example: 85.5
-      required:
-        - student_id
-        - teacher_id
-        - subject
-        - score
+          nullable: true
+        math_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 数学成绩
+          example: 90.0
+          nullable: true
+        english_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 英语成绩
+          example: 88.0
+          nullable: true
+        sports_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 体育成绩
+          example: 92.0
+          nullable: true
+        music_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 音乐成绩
+          example: 87.0
+          nullable: true
+        chinese_teacher_id:
+          type: integer
+          description: 语文老师ID
+          example: 1
+          nullable: true
+        math_teacher_id:
+          type: integer
+          description: 数学老师ID
+          example: 2
+          nullable: true
+        english_teacher_id:
+          type: integer
+          description: 英语老师ID
+          example: 3
+          nullable: true
+        sports_teacher_id:
+          type: integer
+          description: 体育老师ID
+          example: 4
+          nullable: true
+        music_teacher_id:
+          type: integer
+          description: 音乐老师ID
+          example: 5
+          nullable: true
+
     UpdateGradeRequest:
       type: object
       properties:
-        student_id:
-          type: integer
-          description: 学生ID
-          example: 1
-        teacher_id:
-          type: integer
-          description: 老师ID
-          example: 1
-        subject:
-          type: string
-          description: 科目
-          example: "数学"
-        score:
+        chinese_score:
           type: number
           format: float
           minimum: 0
           maximum: 100
-          description: 成绩分数
+          description: 语文成绩
           example: 85.5
-    ErrorResponse:
+          nullable: true
+        math_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 数学成绩
+          example: 90.0
+          nullable: true
+        english_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 英语成绩
+          example: 88.0
+          nullable: true
+        sports_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 体育成绩
+          example: 92.0
+          nullable: true
+        music_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: 音乐成绩
+          example: 87.0
+          nullable: true
+        chinese_teacher_id:
+          type: integer
+          description: 语文老师ID
+          example: 1
+          nullable: true
+        math_teacher_id:
+          type: integer
+          description: 数学老师ID
+          example: 2
+          nullable: true
+        english_teacher_id:
+          type: integer
+          description: 英语老师ID
+          example: 3
+          nullable: true
+        sports_teacher_id:
+          type: integer
+          description: 体育老师ID
+          example: 4
+          nullable: true
+        music_teacher_id:
+          type: integer
+          description: 音乐老师ID
+          example: 5
+          nullable: true
+
+    Error:
       type: object
       properties:
         code:
           type: integer
           description: 错误代码
-          example: 400
         message:
           type: string
           description: 错误信息
-          example: "请求参数错误"
-tags:
-  - name: 学生管理
-    description: 学生信息的增删改查操作
-  - name: 老师管理
-    description: 老师信息的增删改查操作
-  - name: 成绩管理
-    description: 成绩信息的增删改查操作
-  - name: 系统
-    description: 系统相关接口
+        details:
+          type: string
+          description: 错误详情
+          nullable: true
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: "请求参数错误"
+            details: "字段验证失败"
+
+    NotFound:
+      description: 资源未找到
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            message: "资源未找到"
+            details: "指定的资源不存在"
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 500
+            message: "服务器内部错误"
+            details: "数据库连接失败"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT认证令牌
+
+security:
+  - BearerAuth: []

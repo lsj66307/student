@@ -7,14 +7,13 @@ app:
 
 # 数据库配置
 database:
-  host: "localhost"
-  port: 3306
-  username: "root"
-  password: "password"
-  dbname: "student_management"
-  charset: "utf8mb4"
-  parse_time: true
-  loc: "Local"
+  host: "192.168.31.114"
+  port: 5432
+  username: "student_user"
+  password: "student_password"
+  dbname: "student_db"
+  sslmode: "disable"
+  timezone: "Asia/Shanghai"
   max_idle_conns: 10
   max_open_conns: 100
   conn_max_lifetime: 3600 # seconds
@@ -35,6 +34,15 @@ jwt:
   secret: "your-secret-key"
   expires_in: 86400 # seconds (24 hours)
   issuer: "student-management-system"
+
+# Redis配置
+redis:
+  host: "192.168.31.114"
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
 
 # 服务器配置
 server:

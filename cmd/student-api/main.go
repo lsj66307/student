@@ -2,18 +2,34 @@ package main
 
 import (
 	"log"
+	"student-management-system/internal/config"
 	handler "student-management-system/internal/handler"
 	repo "student-management-system/internal/repository"
 )
 
 func main() {
+	// 加载配置
+	log.Println("正在加载配置...")
+	cfg, err := config.Load("configs/config.yaml")
+	if err != nil {
+		log.Fatalf("加载配置失败: %v", err)
+	}
+
 	// 初始化数据库连接
 	log.Println("正在初始化数据库连接...")
-	err := repo.InitDB()
+	err = repo.InitDB()
 	if err != nil {
 		log.Fatalf("数据库连接失败: %v", err)
 	}
 	defer repo.CloseDB()
+
+	// 初始化Redis连接
+	log.Println("正在初始化Redis连接...")
+	err = repo.InitRedis(cfg)
+	if err != nil {
+		log.Fatalf("Redis连接失败: %v", err)
+	}
+	defer repo.CloseRedis()
 
 	// 创建数据库表
 	log.Println("正在创建数据库表...")
@@ -24,7 +40,7 @@ func main() {
 
 	// 设置路由
 	log.Println("正在设置路由...")
-	router := handler.SetupRoutes()
+	router := handler.SetupRoutes(cfg)
 
 	// 启动服务器
 	log.Println("学生管理系统启动中...")
