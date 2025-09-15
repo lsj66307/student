@@ -62,7 +62,7 @@ func (tbl *TokenBucketLimiter) Middleware() gin.HandlerFunc {
 		logger.WithFields(logger.Fields{
 			"client_ip": key,
 		}).Debug("检查令牌桶限流")
-		
+
 		if !tbl.Allow(key) {
 			logger.WithFields(logger.Fields{
 				"client_ip": key,
@@ -74,7 +74,7 @@ func (tbl *TokenBucketLimiter) Middleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		logger.WithFields(logger.Fields{
 			"client_ip": key,
 		}).Debug("令牌桶限流检查通过")
@@ -106,10 +106,10 @@ func (rrl *RedisRateLimiter) Allow(key string) bool {
 	ctx := rrl.client.Context()
 
 	logger.WithFields(logger.Fields{
-		"key":        key,
-		"redis_key":  redisKey,
-		"rate":       rrl.rate,
-		"window":     rrl.window,
+		"key":       key,
+		"redis_key": redisKey,
+		"rate":      rrl.rate,
+		"window":    rrl.window,
 	}).Debug("检查Redis限流")
 
 	// 使用滑动窗口算法

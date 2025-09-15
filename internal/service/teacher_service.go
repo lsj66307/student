@@ -155,10 +155,10 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, 
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"total":        total,
-		"returned":     len(teachers),
-		"page":         page,
-		"page_size":    pageSize,
+		"total":     total,
+		"returned":  len(teachers),
+		"page":      page,
+		"page_size": pageSize,
 	}).Info("Teachers retrieved successfully")
 
 	return teachers, total, nil

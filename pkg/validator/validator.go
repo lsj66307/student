@@ -62,7 +62,7 @@ func (cv *CustomValidator) ValidateVar(field interface{}, tag string) error {
 	logger.WithFields(logger.Fields{
 		"tag": tag,
 	}).Debug("开始验证单个变量")
-	
+
 	err := cv.validator.Var(field, tag)
 	if err != nil {
 		logger.WithFields(logger.Fields{
@@ -76,7 +76,7 @@ func (cv *CustomValidator) ValidateVar(field interface{}, tag string) error {
 func (cv *CustomValidator) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger.Debug("开始验证请求")
-		
+
 		// 验证请求参数
 		if err := cv.validateRequest(c); err != nil {
 			logger.WithError(err).Warn("请求验证失败")
@@ -88,7 +88,7 @@ func (cv *CustomValidator) Middleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		logger.Debug("请求验证通过")
 		c.Next()
 	}
@@ -97,7 +97,7 @@ func (cv *CustomValidator) Middleware() gin.HandlerFunc {
 // validateRequest 验证请求
 func (cv *CustomValidator) validateRequest(c *gin.Context) error {
 	logger.Debug("验证请求参数")
-	
+
 	// 清理查询参数
 	for key, values := range c.Request.URL.Query() {
 		for i, value := range values {
@@ -133,7 +133,7 @@ func (cv *CustomValidator) validatePathParam(key, value string) error {
 		"key":   key,
 		"value": value,
 	}).Debug("验证路径参数")
-	
+
 	switch key {
 	case "id":
 		if _, err := strconv.Atoi(value); err != nil {
@@ -152,7 +152,7 @@ func SanitizeInput(input string) string {
 	logger.WithFields(logger.Fields{
 		"original_length": len(input),
 	}).Debug("开始清理输入数据")
-	
+
 	// 移除前后空格
 	input = strings.TrimSpace(input)
 
@@ -312,7 +312,7 @@ func getErrorMessage(fe validator.FieldError) string {
 // BindAndValidate 绑定并验证请求数据
 func BindAndValidate(c *gin.Context, obj interface{}) error {
 	logger.Debug("开始绑定并验证请求数据")
-	
+
 	// 绑定请求数据
 	if err := c.ShouldBindJSON(obj); err != nil {
 		logger.WithError(err).Warn("数据绑定失败")
@@ -336,7 +336,7 @@ func BindAndValidate(c *gin.Context, obj interface{}) error {
 // SanitizeStruct 清理结构体中的字符串字段
 func SanitizeStruct(obj interface{}) {
 	logger.Debug("开始清理结构体字符串字段")
-	
+
 	v := reflect.ValueOf(obj)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -358,7 +358,7 @@ func SanitizeStruct(obj interface{}) {
 			}
 		}
 	}
-	
+
 	if cleanedCount > 0 {
 		logger.WithFields(logger.Fields{
 			"cleaned_fields": cleanedCount,

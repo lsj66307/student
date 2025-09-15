@@ -4,6 +4,7 @@ import (
 	"student-management-system/internal/config"
 	"student-management-system/internal/repository"
 	"student-management-system/internal/service"
+	"student-management-system/pkg/logger"
 	"student-management-system/pkg/middleware"
 	"student-management-system/pkg/validator"
 
@@ -32,17 +33,25 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 	// 创建验证器实例
 	customValidator := validator.NewValidator()
 
+	// 获取logger实例
+	loggerInstance := logger.GetLogger().Logger
+
+	// 创建Repository实例
+	adminRepo := repository.NewAdminRepository(repository.DB, loggerInstance)
+
 	// 创建服务实例
-	authService := service.NewAuthService(cfg)
+	authService := service.NewAuthService(cfg, adminRepo)
 	studentService := service.NewStudentService()
 	teacherService := service.NewTeacherService()
 	gradeService := service.NewGradeService(repository.DB)
+	adminService := service.NewAdminService(adminRepo, loggerInstance)
 
 	// 创建处理器实例
 	authHandler := NewAuthHandler(authService)
 	studentHandler := NewStudentHandler(studentService, customValidator)
 	teacherHandler := NewTeacherHandler(teacherService)
 	gradeHandler := NewGradeHandler(gradeService)
+	adminHandler := NewAdminHandler(adminService, loggerInstance)
 
 	// API路由组
 	api := router.Group("/api/v1")
@@ -94,6 +103,16 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 				grades.PUT("/:id", gradeHandler.UpdateGrade)    // 更新成绩
 				grades.DELETE("/:id", gradeHandler.DeleteGrade) // 删除成绩
 			}
+
+			// 管理员相关路由（需要认证）
+			admins := protected.Group("/admins")
+			{
+				admins.POST("", adminHandler.CreateAdmin)       // 创建管理员
+				admins.GET("", adminHandler.ListAdmins)         // 获取管理员列表
+				admins.GET("/:id", adminHandler.GetAdmin)       // 获取单个管理员
+				admins.PUT("/:id", adminHandler.UpdateAdmin)    // 更新管理员
+				admins.DELETE("/:id", adminHandler.DeleteAdmin) // 删除管理员
+			}
 		}
 	}
 
@@ -126,6 +145,11 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 					"get_teachers":   "GET /api/v1/teachers (需要认证)",
 					"create_grade":   "POST /api/v1/grades (需要认证)",
 					"get_grades":     "GET /api/v1/grades (需要认证)",
+					"create_admin":   "POST /api/v1/admins (需要认证)",
+					"get_admins":     "GET /api/v1/admins (需要认证)",
+					"get_admin":      "GET /api/v1/admins/{id} (需要认证)",
+					"update_admin":   "PUT /api/v1/admins/{id} (需要认证)",
+					"delete_admin":   "DELETE /api/v1/admins/{id} (需要认证)",
 				},
 			},
 		})

@@ -19,7 +19,7 @@ type ErrorResponse struct {
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger.Debug("开始JWT认证")
-		
+
 		// 从Authorization header中获取token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -68,13 +68,13 @@ func JWTAuth() gin.HandlerFunc {
 
 		logger.WithFields(logger.Fields{
 			"admin_id": claims.AdminID,
-			"username": claims.Username,
+			"account":  claims.Account,
 		}).Info("JWT认证成功")
 
 		// 将claims存储到上下文中，供后续处理器使用
 		c.Set("claims", claims)
 		c.Set("admin_id", claims.AdminID)
-		c.Set("username", claims.Username)
+		c.Set("account", claims.Account)
 
 		// 继续处理请求
 		c.Next()
@@ -85,7 +85,7 @@ func JWTAuth() gin.HandlerFunc {
 func OptionalJWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger.Debug("开始可选JWT认证")
-		
+
 		// 从Authorization header中获取token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -115,13 +115,13 @@ func OptionalJWTAuth() gin.HandlerFunc {
 
 		logger.WithFields(logger.Fields{
 			"admin_id": claims.AdminID,
-			"username": claims.Username,
+			"account":  claims.Account,
 		}).Debug("可选JWT认证成功")
 
 		// 将claims存储到上下文中
 		c.Set("claims", claims)
 		c.Set("admin_id", claims.AdminID)
-		c.Set("username", claims.Username)
+		c.Set("account", claims.Account)
 		c.Set("authenticated", true)
 
 		// 继续处理请求
@@ -133,7 +133,7 @@ func OptionalJWTAuth() gin.HandlerFunc {
 func AdminRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger.Debug("检查管理员权限")
-		
+
 		// 检查是否已通过JWT认证
 		claims, exists := c.Get("claims")
 		if !exists {
@@ -171,12 +171,12 @@ func AdminRequired() gin.HandlerFunc {
 			return
 		}
 
-		// 检查用户名是否为空
-		if jwtClaims.Username == "" {
-			logger.Warn("用户名为空")
+		// 检查账号是否为空
+		if jwtClaims.Account == "" {
+			logger.Warn("账号为空")
 			c.JSON(http.StatusForbidden, ErrorResponse{
 				Error:   "Forbidden",
-				Message: "Invalid username",
+				Message: "Invalid account",
 			})
 			c.Abort()
 			return
@@ -184,7 +184,7 @@ func AdminRequired() gin.HandlerFunc {
 
 		logger.WithFields(logger.Fields{
 			"admin_id": jwtClaims.AdminID,
-			"username": jwtClaims.Username,
+			"account":  jwtClaims.Account,
 		}).Debug("管理员权限验证通过")
 
 		// 继续处理请求

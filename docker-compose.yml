@@ -68,8 +68,6 @@ services:
   # Redis 缓存服务 - 使用外部Redis (192.168.31.114)
   # redis服务已移除，使用外部Redis服务器
 
-
-
 # 网络配置
 networks:
   student-network:

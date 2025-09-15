@@ -40,9 +40,9 @@ func InitDB() error {
 
 	// 先连接到默认的postgres数据库
 	defaultConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Database.Host, cfg.Database.Port, cfg.Database.Username, cfg.Database.Password, "postgres")
+		cfg.Database.Host, cfg.Database.Port, cfg.Database.Username, cfg.Database.Password, "student_management")
 
-	defaultDB, err = sql.Open("postgres", defaultConnStr)
+	defaultDB, err = sql.Open("student_management", defaultConnStr)
 	if err != nil {
 		logger.WithError(err).Error("Failed to open database connection")
 		return fmt.Errorf("打开数据库连接失败: %v", err)
@@ -69,7 +69,7 @@ func InitDB() error {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Database.Host, cfg.Database.Port, cfg.Database.Username, cfg.Database.Password, cfg.Database.DBName)
 
-	DB, err = sql.Open("postgres", connStr)
+	DB, err = sql.Open("student_management", connStr)
 	if err != nil {
 		logger.WithError(err).WithFields(map[string]interface{}{
 			"database": cfg.Database.DBName,
@@ -92,9 +92,9 @@ func InitDB() error {
 	}
 
 	logger.WithFields(map[string]interface{}{
-		"database":        cfg.Database.DBName,
-		"max_idle_conns":  cfg.Database.MaxIdleConns,
-		"max_open_conns":  cfg.Database.MaxOpenConns,
+		"database":       cfg.Database.DBName,
+		"max_idle_conns": cfg.Database.MaxIdleConns,
+		"max_open_conns": cfg.Database.MaxOpenConns,
 	}).Info("Successfully connected to student_management database")
 	return nil
 }
@@ -150,6 +150,26 @@ func CreateTables() error {
 	if err != nil {
 		logger.WithError(err).Error("Failed to create teachers table")
 		return fmt.Errorf("failed to create teachers table: %v", err)
+	}
+
+	// 创建管理员表
+	adminsTable := `
+	CREATE TABLE IF NOT EXISTS admins (
+		id SERIAL PRIMARY KEY,
+		account VARCHAR(50) UNIQUE NOT NULL,
+		password VARCHAR(255) NOT NULL,
+		name VARCHAR(50) NOT NULL,
+		phone VARCHAR(11),
+		email VARCHAR(100),
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+
+	_, err = DB.Exec(adminsTable)
+	if err != nil {
+		logger.WithError(err).Error("Failed to create admins table")
+		return fmt.Errorf("failed to create admins table: %v", err)
 	}
 
 	// 创建成绩表 - 简化为5个科目
@@ -240,6 +260,21 @@ func CreateTables() error {
 	if err != nil {
 		logger.WithError(err).Error("Failed to create grades trigger")
 		return fmt.Errorf("failed to create grades trigger: %v", err)
+	}
+
+	// 为管理员表创建触发器
+	adminTrigger := `
+	DROP TRIGGER IF EXISTS update_admins_updated_at ON admins;
+	CREATE TRIGGER update_admins_updated_at
+		BEFORE UPDATE ON admins
+		FOR EACH ROW
+		EXECUTE FUNCTION update_updated_at_column();
+	`
+
+	_, err = DB.Exec(adminTrigger)
+	if err != nil {
+		logger.WithError(err).Error("Failed to create admins trigger")
+		return fmt.Errorf("failed to create admins trigger: %v", err)
 	}
 
 	logger.Info("Database tables created successfully")

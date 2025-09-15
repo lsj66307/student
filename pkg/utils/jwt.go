@@ -29,10 +29,10 @@ func GenerateToken(adminID int, username string, expiresIn int64) (string, time.
 
 	// 创建JWT声明
 	claims := domain.JWTClaims{
-		AdminID:  adminID,
-		Username: username,
-		Exp:      expiresAt.Unix(),
-		Iat:      now.Unix(),
+		AdminID: adminID,
+		Account: username,
+		Exp:     expiresAt.Unix(),
+		Iat:     now.Unix(),
 	}
 
 	// 创建header
@@ -118,7 +118,7 @@ func ValidateToken(tokenString string) (*domain.JWTClaims, error) {
 
 	logger.WithFields(logger.Fields{
 		"admin_id": claims.AdminID,
-		"username": claims.Username,
+		"account":  claims.Account,
 	}).Debug("JWT token验证成功")
 
 	return &claims, nil

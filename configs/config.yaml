@@ -59,19 +59,3 @@ rateLimit:
   window: "1m" # window for redis type
   redis_addr: "192.168.31.114:6379"
   redis_db: 1
-
-cache:
-  enabled: true
-  redis_addr: "192.168.31.114:6379"
-  redis_db: 2
-  prefix: "student_api_cache"
-  default_ttl: "5m" # 5 minutes
-
-gateway:
-  enabled: false
-  port: 8081
-  services:
-    - name: "student-api"
-      url: "http://localhost:8080"
-      healthCheck: "/health"
-      weight: 1
