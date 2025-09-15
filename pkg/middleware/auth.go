@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"student-management-system/internal/domain"
+	"student-management-system/pkg/logger"
 	"student-management-system/pkg/utils"
 )
 
@@ -17,9 +18,12 @@ type ErrorResponse struct {
 // JWTAuth JWT认证中间件
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		logger.Debug("开始JWT认证")
+		
 		// 从Authorization header中获取token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
+			logger.Warn("缺少Authorization header")
 			c.JSON(http.StatusUnauthorized, ErrorResponse{
 				Error:   "Unauthorized",
 				Message: "Authorization header is required",
@@ -31,6 +35,7 @@ func JWTAuth() gin.HandlerFunc {
 		// 提取token
 		token, err := utils.ExtractTokenFromHeader(authHeader)
 		if err != nil {
+			logger.WithError(err).Warn("提取token失败")
 			c.JSON(http.StatusUnauthorized, ErrorResponse{
 				Error:   "Unauthorized",
 				Message: err.Error(),
@@ -42,6 +47,7 @@ func JWTAuth() gin.HandlerFunc {
 		// 验证token
 		claims, err := utils.ValidateToken(token)
 		if err != nil {
+			logger.WithError(err).Warn("token验证失败")
 			var message string
 			switch err {
 			case domain.ErrTokenExpired:
@@ -60,6 +66,11 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
+		logger.WithFields(logger.Fields{
+			"admin_id": claims.AdminID,
+			"username": claims.Username,
+		}).Info("JWT认证成功")
+
 		// 将claims存储到上下文中，供后续处理器使用
 		c.Set("claims", claims)
 		c.Set("admin_id", claims.AdminID)
@@ -73,9 +84,12 @@ func JWTAuth() gin.HandlerFunc {
 // OptionalJWTAuth 可选的JWT认证中间件（不强制要求认证）
 func OptionalJWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		logger.Debug("开始可选JWT认证")
+		
 		// 从Authorization header中获取token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
+			logger.Debug("无Authorization header，继续处理")
 			// 没有token，继续处理但不设置用户信息
 			c.Next()
 			return
@@ -84,6 +98,7 @@ func OptionalJWTAuth() gin.HandlerFunc {
 		// 提取token
 		token, err := utils.ExtractTokenFromHeader(authHeader)
 		if err != nil {
+			logger.WithError(err).Debug("提取token失败，继续处理")
 			// token格式错误，继续处理但不设置用户信息
 			c.Next()
 			return
@@ -92,10 +107,16 @@ func OptionalJWTAuth() gin.HandlerFunc {
 		// 验证token
 		claims, err := utils.ValidateToken(token)
 		if err != nil {
+			logger.WithError(err).Debug("token验证失败，继续处理")
 			// token无效，继续处理但不设置用户信息
 			c.Next()
 			return
 		}
+
+		logger.WithFields(logger.Fields{
+			"admin_id": claims.AdminID,
+			"username": claims.Username,
+		}).Debug("可选JWT认证成功")
 
 		// 将claims存储到上下文中
 		c.Set("claims", claims)
@@ -111,9 +132,12 @@ func OptionalJWTAuth() gin.HandlerFunc {
 // AdminRequired 要求管理员权限的中间件
 func AdminRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		logger.Debug("检查管理员权限")
+		
 		// 检查是否已通过JWT认证
 		claims, exists := c.Get("claims")
 		if !exists {
+			logger.Warn("未通过JWT认证")
 			c.JSON(http.StatusUnauthorized, ErrorResponse{
 				Error:   "Unauthorized",
 				Message: "Authentication required",
@@ -125,6 +149,7 @@ func AdminRequired() gin.HandlerFunc {
 		// 验证claims类型
 		jwtClaims, ok := claims.(*domain.JWTClaims)
 		if !ok {
+			logger.Error("认证数据类型错误")
 			c.JSON(http.StatusInternalServerError, ErrorResponse{
 				Error:   "Internal error",
 				Message: "Invalid authentication data",
@@ -135,6 +160,9 @@ func AdminRequired() gin.HandlerFunc {
 
 		// 检查管理员ID是否有效
 		if jwtClaims.AdminID <= 0 {
+			logger.WithFields(logger.Fields{
+				"admin_id": jwtClaims.AdminID,
+			}).Warn("无效的管理员ID")
 			c.JSON(http.StatusForbidden, ErrorResponse{
 				Error:   "Forbidden",
 				Message: "Invalid admin ID",
@@ -145,6 +173,7 @@ func AdminRequired() gin.HandlerFunc {
 
 		// 检查用户名是否为空
 		if jwtClaims.Username == "" {
+			logger.Warn("用户名为空")
 			c.JSON(http.StatusForbidden, ErrorResponse{
 				Error:   "Forbidden",
 				Message: "Invalid username",
@@ -152,6 +181,11 @@ func AdminRequired() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		logger.WithFields(logger.Fields{
+			"admin_id": jwtClaims.AdminID,
+			"username": jwtClaims.Username,
+		}).Debug("管理员权限验证通过")
 
 		// 继续处理请求
 		c.Next()

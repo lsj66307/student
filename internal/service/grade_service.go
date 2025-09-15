@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"student-management-system/internal/domain"
+	"student-management-system/pkg/logger"
 	"time"
 )
 
@@ -20,13 +21,26 @@ func NewGradeService(db *sql.DB) *GradeService {
 
 // CreateGrade 创建成绩
 func (s *GradeService) CreateGrade(req domain.CreateGradeRequest) (*domain.Grade, error) {
+	logger.WithFields(map[string]interface{}{
+		"student_id":    req.StudentID,
+		"chinese_score": req.ChineseScore,
+		"math_score":    req.MathScore,
+		"english_score": req.EnglishScore,
+	}).Info("Creating new grade")
+
 	// 检查学生是否存在
 	var studentCount int
 	err := s.db.QueryRow("SELECT COUNT(*) FROM students WHERE id = $1", req.StudentID).Scan(&studentCount)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": req.StudentID,
+		}).Error("Failed to check student existence")
 		return nil, fmt.Errorf("检查学生存在性失败: %v", err)
 	}
 	if studentCount == 0 {
+		logger.WithFields(map[string]interface{}{
+			"student_id": req.StudentID,
+		}).Warn("Student not found")
 		return nil, fmt.Errorf("学生ID %d 不存在", req.StudentID)
 	}
 
@@ -34,14 +48,23 @@ func (s *GradeService) CreateGrade(req domain.CreateGradeRequest) (*domain.Grade
 	var existingCount int
 	err = s.db.QueryRow("SELECT COUNT(*) FROM grades WHERE student_id = $1", req.StudentID).Scan(&existingCount)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": req.StudentID,
+		}).Error("Failed to check existing grade record")
 		return nil, fmt.Errorf("检查成绩记录存在性失败: %v", err)
 	}
 	if existingCount > 0 {
+		logger.WithFields(map[string]interface{}{
+			"student_id": req.StudentID,
+		}).Warn("Grade record already exists for student")
 		return nil, fmt.Errorf("学生ID %d 的成绩记录已存在，请使用更新功能", req.StudentID)
 	}
 
 	// 验证老师ID的有效性
 	if err := s.validateTeacherIDs(req.ChineseTeacherID, req.MathTeacherID, req.EnglishTeacherID, req.SportsTeacherID, req.MusicTeacherID); err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": req.StudentID,
+		}).Error("Teacher ID validation failed")
 		return nil, err
 	}
 
@@ -54,6 +77,9 @@ func (s *GradeService) CreateGrade(req domain.CreateGradeRequest) (*domain.Grade
 	err = s.db.QueryRow(query, req.StudentID, req.ChineseScore, req.MathScore, req.EnglishScore, req.SportsScore, req.MusicScore,
 		req.ChineseTeacherID, req.MathTeacherID, req.EnglishTeacherID, req.SportsTeacherID, req.MusicTeacherID, now, now).Scan(&id)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": req.StudentID,
+		}).Error("Failed to create grade")
 		return nil, fmt.Errorf("创建成绩失败: %v", err)
 	}
 
@@ -74,34 +100,50 @@ func (s *GradeService) CreateGrade(req domain.CreateGradeRequest) (*domain.Grade
 		UpdatedAt:        now,
 	}
 
+	logger.WithFields(map[string]interface{}{
+		"grade_id":   grade.ID,
+		"student_id": grade.StudentID,
+	}).Info("Grade created successfully")
+
 	return grade, nil
 }
 
 // validateTeacherIDs 验证老师ID的有效性
 func (s *GradeService) validateTeacherIDs(chineseTeacherID, mathTeacherID, englishTeacherID, sportsTeacherID, musicTeacherID *int) error {
-	teacherIDs := map[string]*int{
-		"体育": sportsTeacherID,
-		"音乐": musicTeacherID,
-		"语文": chineseTeacherID,
-		"数学": mathTeacherID,
-		"英语": englishTeacherID,
+	teacherIDs := []*struct {
+		id      *int
+		subject string
+	}{
+		{sportsTeacherID, "体育"},
+		{musicTeacherID, "音乐"},
+		{chineseTeacherID, "语文"},
+		{mathTeacherID, "数学"},
+		{englishTeacherID, "英语"},
 	}
 
-	for subject, teacherID := range teacherIDs {
-		if teacherID != nil {
-			// 检查老师是否存在且教授对应科目
-			var teacherSubject string
-			err := s.db.QueryRow("SELECT subject FROM teachers WHERE id = $1", *teacherID).Scan(&teacherSubject)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					return fmt.Errorf("老师ID %d 不存在", *teacherID)
-				}
-				return fmt.Errorf("检查老师存在性失败: %v", err)
-			}
-			if teacherSubject != subject {
-				return fmt.Errorf("老师ID %d 不教授%s，实际教授: %s", *teacherID, subject, teacherSubject)
+	for _, teacher := range teacherIDs {
+		if teacher.id != nil {
+			if err := s.validateSingleTeacher(*teacher.id, teacher.subject); err != nil {
+				return err
 			}
 		}
+	}
+	return nil
+}
+
+// validateSingleTeacher 验证单个教师
+func (s *GradeService) validateSingleTeacher(teacherID int, expectedSubject string) error {
+	var teacherSubject string
+	err := s.db.QueryRow("SELECT subject FROM teachers WHERE id = $1", teacherID).Scan(&teacherSubject)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("老师ID %d 不存在", teacherID)
+		}
+		return fmt.Errorf("检查老师存在性失败: %v", err)
+	}
+
+	if teacherSubject != expectedSubject {
+		return fmt.Errorf("老师ID %d 的科目是 %s，不是 %s", teacherID, teacherSubject, expectedSubject)
 	}
 	return nil
 }

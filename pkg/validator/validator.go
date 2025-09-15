@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"student-management-system/pkg/logger"
 )
 
 // Validator 验证器接口
@@ -27,6 +28,7 @@ type CustomValidator struct {
 
 // NewValidator 创建新的验证器
 func NewValidator() *CustomValidator {
+	logger.Debug("创建新的验证器")
 	v := validator.New()
 
 	// 注册自定义验证规则
@@ -37,6 +39,7 @@ func NewValidator() *CustomValidator {
 	v.RegisterValidation("nosql", validateNoSQL)
 	v.RegisterValidation("safename", validateSafeName)
 
+	logger.Debug("验证器创建完成，已注册自定义验证规则")
 	return &CustomValidator{
 		validator: v,
 	}
@@ -44,19 +47,39 @@ func NewValidator() *CustomValidator {
 
 // ValidateStruct 验证结构体
 func (cv *CustomValidator) ValidateStruct(s interface{}) error {
-	return cv.validator.Struct(s)
+	logger.Debug("开始验证结构体")
+	err := cv.validator.Struct(s)
+	if err != nil {
+		logger.WithError(err).Warn("结构体验证失败")
+	} else {
+		logger.Debug("结构体验证成功")
+	}
+	return err
 }
 
 // ValidateVar 验证单个变量
 func (cv *CustomValidator) ValidateVar(field interface{}, tag string) error {
-	return cv.validator.Var(field, tag)
+	logger.WithFields(logger.Fields{
+		"tag": tag,
+	}).Debug("开始验证单个变量")
+	
+	err := cv.validator.Var(field, tag)
+	if err != nil {
+		logger.WithFields(logger.Fields{
+			"tag": tag,
+		}).WithError(err).Warn("变量验证失败")
+	}
+	return err
 }
 
 // Middleware 返回验证中间件
 func (cv *CustomValidator) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		logger.Debug("开始验证请求")
+		
 		// 验证请求参数
 		if err := cv.validateRequest(c); err != nil {
+			logger.WithError(err).Warn("请求验证失败")
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":   "Validation failed",
 				"code":    "VALIDATION_ERROR",
@@ -65,22 +88,38 @@ func (cv *CustomValidator) Middleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		
+		logger.Debug("请求验证通过")
 		c.Next()
 	}
 }
 
 // validateRequest 验证请求
 func (cv *CustomValidator) validateRequest(c *gin.Context) error {
+	logger.Debug("验证请求参数")
+	
 	// 清理查询参数
 	for key, values := range c.Request.URL.Query() {
 		for i, value := range values {
+			originalValue := value
 			c.Request.URL.Query()[key][i] = SanitizeInput(value)
+			if originalValue != c.Request.URL.Query()[key][i] {
+				logger.WithFields(logger.Fields{
+					"key":      key,
+					"original": originalValue,
+					"cleaned":  c.Request.URL.Query()[key][i],
+				}).Debug("清理查询参数")
+			}
 		}
 	}
 
 	// 验证路径参数
 	for _, param := range c.Params {
 		if err := cv.validatePathParam(param.Key, param.Value); err != nil {
+			logger.WithFields(logger.Fields{
+				"param_key":   param.Key,
+				"param_value": param.Value,
+			}).WithError(err).Warn("路径参数验证失败")
 			return fmt.Errorf("invalid path parameter %s: %w", param.Key, err)
 		}
 	}
@@ -90,6 +129,11 @@ func (cv *CustomValidator) validateRequest(c *gin.Context) error {
 
 // validatePathParam 验证路径参数
 func (cv *CustomValidator) validatePathParam(key, value string) error {
+	logger.WithFields(logger.Fields{
+		"key":   key,
+		"value": value,
+	}).Debug("验证路径参数")
+	
 	switch key {
 	case "id":
 		if _, err := strconv.Atoi(value); err != nil {
@@ -105,6 +149,10 @@ func (cv *CustomValidator) validatePathParam(key, value string) error {
 
 // SanitizeInput 清理输入数据
 func SanitizeInput(input string) string {
+	logger.WithFields(logger.Fields{
+		"original_length": len(input),
+	}).Debug("开始清理输入数据")
+	
 	// 移除前后空格
 	input = strings.TrimSpace(input)
 
@@ -116,6 +164,10 @@ func SanitizeInput(input string) string {
 
 	// 移除控制字符
 	input = removeControlChars(input)
+
+	logger.WithFields(logger.Fields{
+		"cleaned_length": len(input),
+	}).Debug("输入数据清理完成")
 
 	return input
 }
@@ -259,8 +311,11 @@ func getErrorMessage(fe validator.FieldError) string {
 
 // BindAndValidate 绑定并验证请求数据
 func BindAndValidate(c *gin.Context, obj interface{}) error {
+	logger.Debug("开始绑定并验证请求数据")
+	
 	// 绑定请求数据
 	if err := c.ShouldBindJSON(obj); err != nil {
+		logger.WithError(err).Warn("数据绑定失败")
 		return fmt.Errorf("数据绑定失败: %w", err)
 	}
 
@@ -270,14 +325,18 @@ func BindAndValidate(c *gin.Context, obj interface{}) error {
 	// 验证数据
 	v := NewValidator()
 	if err := v.ValidateStruct(obj); err != nil {
+		logger.WithError(err).Warn("数据验证失败")
 		return err
 	}
 
+	logger.Debug("请求数据绑定和验证成功")
 	return nil
 }
 
 // SanitizeStruct 清理结构体中的字符串字段
 func SanitizeStruct(obj interface{}) {
+	logger.Debug("开始清理结构体字符串字段")
+	
 	v := reflect.ValueOf(obj)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -287,11 +346,22 @@ func SanitizeStruct(obj interface{}) {
 		return
 	}
 
+	cleanedCount := 0
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
 		if field.Kind() == reflect.String && field.CanSet() {
-			cleanValue := SanitizeInput(field.String())
+			originalValue := field.String()
+			cleanValue := SanitizeInput(originalValue)
 			field.SetString(cleanValue)
+			if originalValue != cleanValue {
+				cleanedCount++
+			}
 		}
+	}
+	
+	if cleanedCount > 0 {
+		logger.WithFields(logger.Fields{
+			"cleaned_fields": cleanedCount,
+		}).Debug("结构体字段清理完成")
 	}
 }

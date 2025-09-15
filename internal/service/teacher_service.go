@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"student-management-system/internal/domain"
 	"student-management-system/internal/repository"
+	"student-management-system/pkg/logger"
 	"time"
 )
 
@@ -22,6 +23,13 @@ func NewTeacherService() *TeacherService {
 
 // CreateTeacher 创建新老师
 func (t *TeacherService) CreateTeacher(req domain.CreateTeacherRequest) (*domain.Teacher, error) {
+	logger.WithFields(map[string]interface{}{
+		"name":       req.Name,
+		"email":      req.Email,
+		"subject":    req.Subject,
+		"department": req.Department,
+	}).Info("Creating new teacher")
+
 	query := `
 		INSERT INTO teachers (name, age, gender, email, phone, subject, title, department)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -36,14 +44,30 @@ func (t *TeacherService) CreateTeacher(req domain.CreateTeacherRequest) (*domain
 	)
 
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"name":       req.Name,
+			"email":      req.Email,
+			"subject":    req.Subject,
+			"department": req.Department,
+		}).Error("Failed to create teacher")
 		return nil, fmt.Errorf("failed to create teacher: %v", err)
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"teacher_id": teacher.ID,
+		"name":       teacher.Name,
+		"subject":    teacher.Subject,
+	}).Info("Teacher created successfully")
 
 	return teacher, nil
 }
 
 // GetTeacherByID 根据ID获取老师信息
 func (t *TeacherService) GetTeacherByID(id int) (*domain.Teacher, error) {
+	logger.WithFields(map[string]interface{}{
+		"teacher_id": id,
+	}).Info("Getting teacher by ID")
+
 	query := `
 		SELECT id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
 		FROM teachers
@@ -59,8 +83,14 @@ func (t *TeacherService) GetTeacherByID(id int) (*domain.Teacher, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
+			logger.WithFields(map[string]interface{}{
+				"teacher_id": id,
+			}).Warn("Teacher not found")
 			return nil, fmt.Errorf("teacher not found")
 		}
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"teacher_id": id,
+		}).Error("Failed to get teacher")
 		return nil, fmt.Errorf("failed to get teacher: %v", err)
 	}
 
@@ -69,6 +99,11 @@ func (t *TeacherService) GetTeacherByID(id int) (*domain.Teacher, error) {
 
 // GetAllTeachers 获取所有老师列表
 func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, int, error) {
+	logger.WithFields(map[string]interface{}{
+		"page":      page,
+		"page_size": pageSize,
+	}).Info("Getting all teachers")
+
 	// 计算偏移量
 	offset := (page - 1) * pageSize
 
@@ -77,6 +112,7 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, 
 	var total int
 	err := t.db.QueryRow(countQuery).Scan(&total)
 	if err != nil {
+		logger.WithError(err).Error("Failed to count teachers")
 		return nil, 0, fmt.Errorf("failed to count teachers: %v", err)
 	}
 
@@ -90,6 +126,10 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, 
 
 	rows, err := t.db.Query(query, pageSize, offset)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"page":      page,
+			"page_size": pageSize,
+		}).Error("Failed to query teachers")
 		return nil, 0, fmt.Errorf("failed to query teachers: %v", err)
 	}
 	defer rows.Close()
@@ -103,14 +143,23 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, 
 			&teacher.Department, &teacher.CreatedAt, &teacher.UpdatedAt,
 		)
 		if err != nil {
+			logger.WithError(err).Error("Failed to scan teacher row")
 			return nil, 0, fmt.Errorf("failed to scan teacher: %v", err)
 		}
 		teachers = append(teachers, teacher)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("rows error: %v", err)
+		logger.WithError(err).Error("Error occurred during rows iteration")
+		return nil, 0, fmt.Errorf("error during rows iteration: %v", err)
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"total":        total,
+		"returned":     len(teachers),
+		"page":         page,
+		"page_size":    pageSize,
+	}).Info("Teachers retrieved successfully")
 
 	return teachers, total, nil
 }

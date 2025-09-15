@@ -9,6 +9,7 @@ import (
 	"student-management-system/internal/config"
 	"student-management-system/internal/domain"
 	"student-management-system/internal/repository"
+	"student-management-system/pkg/logger"
 	"student-management-system/pkg/utils"
 )
 
@@ -30,13 +31,24 @@ func (s *AuthService) Login(req *domain.LoginRequest) (*domain.LoginResponse, er
 	lockKey := fmt.Sprintf("login_lock:%s", req.Username)
 	failCountKey := fmt.Sprintf("login_fail_count:%s", req.Username)
 
+	logger.WithFields(map[string]interface{}{
+		"username": req.Username,
+	}).Info("Admin login attempt")
+
 	// 检查是否被锁定
 	locked, err := repository.RedisClient.Exists(ctx, lockKey).Result()
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"username": req.Username,
+		}).Error("Failed to check lock status")
 		return nil, fmt.Errorf("检查锁定状态失败: %w", err)
 	}
 	if locked > 0 {
 		ttl, _ := repository.RedisClient.TTL(ctx, lockKey).Result()
+		logger.WithFields(map[string]interface{}{
+			"username": req.Username,
+			"ttl":      ttl,
+		}).Warn("Account is locked")
 		return nil, fmt.Errorf("账户已被锁定，请在 %v 后重试", ttl)
 	}
 
@@ -45,6 +57,9 @@ func (s *AuthService) Login(req *domain.LoginRequest) (*domain.LoginResponse, er
 		// 登录失败，增加失败次数
 		failCount, err := repository.RedisClient.Incr(ctx, failCountKey).Result()
 		if err != nil {
+			logger.WithError(err).WithFields(map[string]interface{}{
+				"username": req.Username,
+			}).Error("Failed to record login failure count")
 			return nil, fmt.Errorf("记录登录失败次数失败: %w", err)
 		}
 
@@ -55,13 +70,24 @@ func (s *AuthService) Login(req *domain.LoginRequest) (*domain.LoginResponse, er
 		if failCount >= 5 {
 			err = repository.RedisClient.Set(ctx, lockKey, "locked", 5*time.Minute).Err()
 			if err != nil {
+				logger.WithError(err).WithFields(map[string]interface{}{
+					"username": req.Username,
+				}).Error("Failed to lock account")
 				return nil, fmt.Errorf("锁定账户失败: %w", err)
 			}
 			// 清除失败次数
 			repository.RedisClient.Del(ctx, failCountKey)
+			logger.WithFields(map[string]interface{}{
+				"username":   req.Username,
+				"fail_count": failCount,
+			}).Warn("Account locked due to too many failed attempts")
 			return nil, fmt.Errorf("登录失败次数过多，账户已被锁定5分钟")
 		}
 
+		logger.WithFields(map[string]interface{}{
+			"username":   req.Username,
+			"fail_count": failCount,
+		}).Warn("Login failed - invalid credentials")
 		return nil, fmt.Errorf("用户名或密码错误，还可尝试 %d 次", 5-failCount)
 	}
 
@@ -77,6 +103,9 @@ func (s *AuthService) Login(req *domain.LoginRequest) (*domain.LoginResponse, er
 	// 生成JWT token
 	token, expiresAt, err := utils.GenerateToken(1, req.Username, int64(expiresIn.Seconds()))
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"username": req.Username,
+		}).Error("Failed to generate token")
 		return nil, fmt.Errorf("failed to generate token: %w", err)
 	}
 
@@ -89,6 +118,11 @@ func (s *AuthService) Login(req *domain.LoginRequest) (*domain.LoginResponse, er
 			Username: req.Username,
 		},
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"username":   req.Username,
+		"expires_at": expiresAt,
+	}).Info("Admin login successful")
 
 	return response, nil
 }
@@ -140,8 +174,18 @@ func (s *AuthService) RefreshToken(claims *domain.JWTClaims) (*domain.LoginRespo
 
 		token, expiresAt, err := utils.GenerateToken(claims.AdminID, claims.Username, int64(expiresIn.Seconds()))
 		if err != nil {
+			logger.WithError(err).WithFields(map[string]interface{}{
+				"admin_id": claims.AdminID,
+				"username": claims.Username,
+			}).Error("Failed to refresh token")
 			return nil, fmt.Errorf("failed to refresh token: %w", err)
 		}
+
+		logger.WithFields(map[string]interface{}{
+			"admin_id":   claims.AdminID,
+			"username":   claims.Username,
+			"expires_at": expiresAt,
+		}).Info("Token refreshed successfully")
 
 		return &domain.LoginResponse{
 			Token:     token,

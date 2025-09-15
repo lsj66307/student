@@ -27,16 +27,16 @@ func NewTeacherHandler(teacherService *service.TeacherService) *TeacherHandler {
 // @Tags teachers
 // @Accept json
 // @Produce json
-// @Param teacher body models.CreateTeacherRequest true "老师信息"
+// @Param teacher body domain.CreateTeacherRequest true "老师信息"
 // @Success 201 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
 // @Router /api/v1/teachers [post]
 func (h *TeacherHandler) CreateTeacher(c *gin.Context) {
 	var req domain.CreateTeacherRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code:    400,
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid request format",
 			Message: "请求参数错误: " + err.Error(),
 		})
 		return
@@ -44,8 +44,8 @@ func (h *TeacherHandler) CreateTeacher(c *gin.Context) {
 
 	teacher, err := h.teacherService.CreateTeacher(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code:    500,
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Create teacher failed",
 			Message: "创建老师失败: " + err.Error(),
 		})
 		return
@@ -65,16 +65,16 @@ func (h *TeacherHandler) CreateTeacher(c *gin.Context) {
 // @Produce json
 // @Param id path int true "老师ID"
 // @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 404 {object} Response
-// @Failure 500 {object} Response
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
 // @Router /api/v1/teachers/{id} [get]
 func (h *TeacherHandler) GetTeacher(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code:    400,
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid teacher ID",
 			Message: "无效的老师ID",
 		})
 		return
@@ -83,13 +83,13 @@ func (h *TeacherHandler) GetTeacher(c *gin.Context) {
 	teacher, err := h.teacherService.GetTeacherByID(id)
 	if err != nil {
 		if err.Error() == "teacher not found" {
-			c.JSON(http.StatusNotFound, Response{
-				Code:    404,
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Teacher not found",
 				Message: "老师不存在",
 			})
 		} else {
-			c.JSON(http.StatusInternalServerError, Response{
-				Code:    500,
+			c.JSON(http.StatusInternalServerError, ErrorResponse{
+				Error:   "Get teacher failed",
 				Message: "获取老师信息失败: " + err.Error(),
 			})
 		}

@@ -30,16 +30,16 @@ func NewStudentHandler(studentService *service.StudentService, validator *valida
 // @Tags students
 // @Accept json
 // @Produce json
-// @Param student body models.CreateStudentRequest true "学生信息"
+// @Param student body domain.CreateStudentRequest true "学生信息"
 // @Success 201 {object} Response
-// @Failure 400 {object} Response
-// @Failure 500 {object} Response
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
 // @Router /api/students [post]
 func (h *StudentHandler) CreateStudent(c *gin.Context) {
 	var req domain.CreateStudentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code:    400,
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid request format",
 			Message: "请求参数错误: " + err.Error(),
 		})
 		return
@@ -47,8 +47,8 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 
 	// 验证和清理输入数据
 	if err := h.validator.ValidateStruct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code:    400,
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Validation failed",
 			Message: "数据验证失败: " + err.Error(),
 		})
 		return
@@ -63,8 +63,8 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 
 	student, err := h.studentService.CreateStudent(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code:    500,
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Create student failed",
 			Message: "创建学生失败: " + err.Error(),
 		})
 		return
@@ -84,16 +84,16 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 // @Produce json
 // @Param id path int true "学生ID"
 // @Success 200 {object} Response
-// @Failure 400 {object} Response
-// @Failure 404 {object} Response
-// @Failure 500 {object} Response
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
 // @Router /api/students/{id} [get]
 func (h *StudentHandler) GetStudent(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code:    400,
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid student ID",
 			Message: "无效的学生ID",
 		})
 		return

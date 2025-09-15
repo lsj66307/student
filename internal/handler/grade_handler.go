@@ -28,16 +28,16 @@ func NewGradeHandler(gradeService *service.GradeService) *GradeHandler {
 // @Tags 成绩管理
 // @Accept json
 // @Produce json
-// @Param grade body models.CreateGradeRequest true "成绩信息"
-// @Success 201 {object} map[string]interface{} "成绩创建成功"
-// @Failure 400 {object} map[string]interface{} "请求参数错误"
-// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Param grade body domain.CreateGradeRequest true "成绩信息"
+// @Success 201 {object} Response "成绩创建成功"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
+// @Failure 500 {object} ErrorResponse "服务器内部错误"
 // @Router /api/v1/grades [post]
 func (h *GradeHandler) CreateGrade(c *gin.Context) {
 	var req domain.CreateGradeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, Response{
-			Code:    400,
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error:   "Invalid request format",
 			Message: "请求参数错误: " + err.Error(),
 		})
 		return
@@ -45,8 +45,8 @@ func (h *GradeHandler) CreateGrade(c *gin.Context) {
 
 	grade, err := h.gradeService.CreateGrade(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code:    500,
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Create grade failed",
 			Message: "创建成绩失败: " + err.Error(),
 		})
 		return
@@ -68,8 +68,8 @@ func (h *GradeHandler) CreateGrade(c *gin.Context) {
 // @Param student_id query int false "学生ID"
 // @Param page query int false "页码" default(1)
 // @Param size query int false "每页数量" default(10)
-// @Success 200 {object} map[string]interface{} "获取成功"
-// @Failure 500 {object} map[string]interface{} "服务器内部错误"
+// @Success 200 {object} PaginatedResponse "获取成功"
+// @Failure 500 {object} ErrorResponse "服务器内部错误"
 // @Router /api/v1/grades [get]
 func (h *GradeHandler) GetGrades(c *gin.Context) {
 	var params domain.GradeQueryParams

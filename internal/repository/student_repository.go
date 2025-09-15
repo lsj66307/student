@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"student-management-system/internal/domain"
+	"student-management-system/pkg/logger"
 )
 
 // StudentRepository 学生仓储接口
@@ -11,13 +12,12 @@ type StudentRepository interface {
 	GetByID(id int) (*domain.Student, error)
 	GetByStudentID(studentID string) (*domain.Student, error)
 	Update(student *domain.Student) error
+	UpdateMajor(studentID int, newMajor string) error
 	Delete(id int) error
 	List(offset, limit int) ([]*domain.Student, error)
 	Count() (int, error)
 	BatchCreate(students []*domain.Student) error
 	BatchDelete(ids []int) error
-	GetByMajor(major string) ([]*domain.Student, error)
-	UpdateMajor(id int, newMajor string) error
 }
 
 // studentRepository 学生仓储实现
@@ -32,6 +32,11 @@ func NewStudentRepository(db *sql.DB) StudentRepository {
 
 // Create 创建学生
 func (r *studentRepository) Create(student *domain.Student) error {
+	logger.WithFields(map[string]interface{}{
+		"student_id": student.StudentID,
+		"name":       student.Name,
+	}).Info("Creating student")
+
 	query := `
 		INSERT INTO students (student_id, name, age, gender, phone, email, address, major, enrollment_date, graduation_date, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -53,18 +58,37 @@ func (r *studentRepository) Create(student *domain.Student) error {
 		student.Status,
 	).Scan(&student.ID, &student.CreatedAt, &student.UpdatedAt)
 
-	return err
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": student.StudentID,
+			"name":       student.Name,
+		}).Error("Failed to create student")
+		return err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"id":         student.ID,
+		"student_id": student.StudentID,
+		"name":       student.Name,
+	}).Info("Student created successfully")
+
+	return nil
 }
 
 // GetByID 根据ID获取学生
 func (r *studentRepository) GetByID(id int) (*domain.Student, error) {
+	logger.WithFields(map[string]interface{}{
+		"id": id,
+	}).Info("Getting student by ID")
+
+	student := &domain.Student{}
 	query := `
 		SELECT id, student_id, name, age, gender, phone, email, address, major, 
 		       enrollment_date, graduation_date, status, created_at, updated_at
-		FROM students WHERE id = $1
+		FROM students 
+		WHERE id = $1
 	`
 
-	student := &domain.Student{}
 	err := r.db.QueryRow(query, id).Scan(
 		&student.ID,
 		&student.StudentID,
@@ -83,21 +107,42 @@ func (r *studentRepository) GetByID(id int) (*domain.Student, error) {
 	)
 
 	if err == sql.ErrNoRows {
+		logger.WithFields(map[string]interface{}{
+			"id": id,
+		}).Warn("Student not found")
 		return nil, nil
 	}
 
-	return student, err
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"id": id,
+		}).Error("Failed to get student by ID")
+		return nil, err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"id":         student.ID,
+		"student_id": student.StudentID,
+		"name":       student.Name,
+	}).Info("Student retrieved successfully")
+
+	return student, nil
 }
 
 // GetByStudentID 根据学号获取学生
 func (r *studentRepository) GetByStudentID(studentID string) (*domain.Student, error) {
+	logger.WithFields(map[string]interface{}{
+		"student_id": studentID,
+	}).Info("Getting student by student ID")
+
+	student := &domain.Student{}
 	query := `
 		SELECT id, student_id, name, age, gender, phone, email, address, major, 
 		       enrollment_date, graduation_date, status, created_at, updated_at
-		FROM students WHERE student_id = $1
+		FROM students 
+		WHERE student_id = $1
 	`
 
-	student := &domain.Student{}
 	err := r.db.QueryRow(query, studentID).Scan(
 		&student.ID,
 		&student.StudentID,
@@ -116,14 +161,36 @@ func (r *studentRepository) GetByStudentID(studentID string) (*domain.Student, e
 	)
 
 	if err == sql.ErrNoRows {
+		logger.WithFields(map[string]interface{}{
+			"student_id": studentID,
+		}).Warn("Student not found by student ID")
 		return nil, nil
 	}
 
-	return student, err
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": studentID,
+		}).Error("Failed to get student by student ID")
+		return nil, err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"id":         student.ID,
+		"student_id": student.StudentID,
+		"name":       student.Name,
+	}).Info("Student retrieved by student ID successfully")
+
+	return student, nil
 }
 
 // Update 更新学生信息
 func (r *studentRepository) Update(student *domain.Student) error {
+	logger.WithFields(map[string]interface{}{
+		"id":         student.ID,
+		"student_id": student.StudentID,
+		"name":       student.Name,
+	}).Info("Updating student")
+
 	query := `
 		UPDATE students 
 		SET student_id = $2, name = $3, age = $4, gender = $5, phone = $6, 
@@ -148,18 +215,54 @@ func (r *studentRepository) Update(student *domain.Student) error {
 		student.Status,
 	)
 
-	return err
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"id":         student.ID,
+			"student_id": student.StudentID,
+			"name":       student.Name,
+		}).Error("Failed to update student")
+		return err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"id":         student.ID,
+		"student_id": student.StudentID,
+		"name":       student.Name,
+	}).Info("Student updated successfully")
+
+	return nil
 }
 
 // Delete 删除学生
 func (r *studentRepository) Delete(id int) error {
+	logger.WithFields(map[string]interface{}{
+		"id": id,
+	}).Info("Deleting student")
+
 	query := `DELETE FROM students WHERE id = $1`
 	_, err := r.db.Exec(query, id)
-	return err
+
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"id": id,
+		}).Error("Failed to delete student")
+		return err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"id": id,
+	}).Info("Student deleted successfully")
+
+	return nil
 }
 
 // List 获取学生列表
 func (r *studentRepository) List(offset, limit int) ([]*domain.Student, error) {
+	logger.WithFields(map[string]interface{}{
+		"offset": offset,
+		"limit":  limit,
+	}).Info("Getting student list")
+
 	query := `
 		SELECT id, student_id, name, age, gender, phone, email, address, major, 
 		       enrollment_date, graduation_date, status, created_at, updated_at
@@ -170,6 +273,10 @@ func (r *studentRepository) List(offset, limit int) ([]*domain.Student, error) {
 
 	rows, err := r.db.Query(query, limit, offset)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"offset": offset,
+			"limit":  limit,
+		}).Error("Failed to query student list")
 		return nil, err
 	}
 	defer rows.Close()
@@ -194,26 +301,55 @@ func (r *studentRepository) List(offset, limit int) ([]*domain.Student, error) {
 			&student.UpdatedAt,
 		)
 		if err != nil {
+			logger.WithError(err).Error("Failed to scan student row")
 			return nil, err
 		}
 		students = append(students, student)
 	}
 
-	return students, rows.Err()
+	if err = rows.Err(); err != nil {
+		logger.WithError(err).Error("Error iterating student rows")
+		return nil, err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"count":  len(students),
+		"offset": offset,
+		"limit":  limit,
+	}).Info("Student list retrieved successfully")
+
+	return students, nil
 }
 
 // Count 获取学生总数
 func (r *studentRepository) Count() (int, error) {
+	logger.Info("Getting student count")
+
 	query := `SELECT COUNT(*) FROM students`
 	var count int
 	err := r.db.QueryRow(query).Scan(&count)
-	return count, err
+
+	if err != nil {
+		logger.WithError(err).Error("Failed to get student count")
+		return 0, err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"count": count,
+	}).Info("Student count retrieved successfully")
+
+	return count, nil
 }
 
 // BatchCreate 批量创建学生
 func (r *studentRepository) BatchCreate(students []*domain.Student) error {
+	logger.WithFields(map[string]interface{}{
+		"count": len(students),
+	}).Info("Batch creating students")
+
 	tx, err := r.db.Begin()
 	if err != nil {
+		logger.WithError(err).Error("Failed to begin transaction for batch create")
 		return err
 	}
 	defer tx.Rollback()
@@ -224,7 +360,7 @@ func (r *studentRepository) BatchCreate(students []*domain.Student) error {
 		RETURNING id, created_at, updated_at
 	`
 
-	for _, student := range students {
+	for i, student := range students {
 		err := tx.QueryRow(
 			query,
 			student.StudentID,
@@ -241,71 +377,97 @@ func (r *studentRepository) BatchCreate(students []*domain.Student) error {
 		).Scan(&student.ID, &student.CreatedAt, &student.UpdatedAt)
 
 		if err != nil {
+			logger.WithError(err).WithFields(map[string]interface{}{
+				"index":      i,
+				"student_id": student.StudentID,
+				"name":       student.Name,
+			}).Error("Failed to create student in batch")
 			return err
 		}
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		logger.WithError(err).Error("Failed to commit batch create transaction")
+		return err
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"count": len(students),
+	}).Info("Batch create students completed successfully")
+
+	return nil
 }
 
 // BatchDelete 批量删除学生
 func (r *studentRepository) BatchDelete(ids []int) error {
 	if len(ids) == 0 {
+		logger.Warn("No IDs provided for batch delete")
 		return nil
 	}
 
+	logger.WithFields(map[string]interface{}{
+		"count": len(ids),
+		"ids":   ids,
+	}).Info("Batch deleting students")
+
 	query := `DELETE FROM students WHERE id = ANY($1)`
 	_, err := r.db.Exec(query, ids)
-	return err
-}
 
-// GetByMajor 根据专业获取学生列表
-func (r *studentRepository) GetByMajor(major string) ([]*domain.Student, error) {
-	query := `
-		SELECT id, student_id, name, age, gender, phone, email, address, major, 
-		       enrollment_date, graduation_date, status, created_at, updated_at
-		FROM students 
-		WHERE major = $1
-		ORDER BY id
-	`
-
-	rows, err := r.db.Query(query, major)
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var students []*domain.Student
-	for rows.Next() {
-		student := &domain.Student{}
-		err := rows.Scan(
-			&student.ID,
-			&student.StudentID,
-			&student.Name,
-			&student.Age,
-			&student.Gender,
-			&student.Phone,
-			&student.Email,
-			&student.Address,
-			&student.Major,
-			&student.EnrollmentDate,
-			&student.GraduationDate,
-			&student.Status,
-			&student.CreatedAt,
-			&student.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		students = append(students, student)
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"count": len(ids),
+			"ids":   ids,
+		}).Error("Failed to batch delete students")
+		return err
 	}
 
-	return students, rows.Err()
+	logger.WithFields(map[string]interface{}{
+		"count": len(ids),
+		"ids":   ids,
+	}).Info("Batch delete students completed successfully")
+
+	return nil
 }
 
 // UpdateMajor 更新学生专业
-func (r *studentRepository) UpdateMajor(id int, newMajor string) error {
-	query := `UPDATE students SET major = $2 WHERE id = $1`
-	_, err := r.db.Exec(query, id, newMajor)
-	return err
+func (r *studentRepository) UpdateMajor(studentID int, newMajor string) error {
+	logger.WithFields(map[string]interface{}{
+		"student_id": studentID,
+		"new_major":  newMajor,
+	}).Info("Updating student major")
+
+	query := `UPDATE students SET major = $1, updated_at = NOW() WHERE id = $2`
+	result, err := r.db.Exec(query, newMajor, studentID)
+
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": studentID,
+			"new_major":  newMajor,
+		}).Error("Failed to update student major")
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": studentID,
+			"new_major":  newMajor,
+		}).Error("Failed to get rows affected after updating student major")
+		return err
+	}
+
+	if rowsAffected == 0 {
+		logger.WithFields(map[string]interface{}{
+			"student_id": studentID,
+			"new_major":  newMajor,
+		}).Warn("No student found with the given ID for major update")
+		return sql.ErrNoRows
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"student_id": studentID,
+		"new_major":  newMajor,
+	}).Info("Student major updated successfully")
+
+	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"golang.org/x/time/rate"
+	"student-management-system/pkg/logger"
 )
 
 // RateLimiter 限流器接口
@@ -58,7 +59,14 @@ func (tbl *TokenBucketLimiter) Allow(key string) bool {
 func (tbl *TokenBucketLimiter) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := c.ClientIP()
+		logger.WithFields(logger.Fields{
+			"client_ip": key,
+		}).Debug("检查令牌桶限流")
+		
 		if !tbl.Allow(key) {
+			logger.WithFields(logger.Fields{
+				"client_ip": key,
+			}).Warn("令牌桶限流触发")
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "Rate limit exceeded",
 				"code":  "RATE_LIMIT_EXCEEDED",
@@ -66,6 +74,10 @@ func (tbl *TokenBucketLimiter) Middleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		
+		logger.WithFields(logger.Fields{
+			"client_ip": key,
+		}).Debug("令牌桶限流检查通过")
 		c.Next()
 	}
 }
@@ -93,31 +105,61 @@ func (rrl *RedisRateLimiter) Allow(key string) bool {
 	redisKey := rrl.keyPrefix + key
 	ctx := rrl.client.Context()
 
+	logger.WithFields(logger.Fields{
+		"key":        key,
+		"redis_key":  redisKey,
+		"rate":       rrl.rate,
+		"window":     rrl.window,
+	}).Debug("检查Redis限流")
+
 	// 使用滑动窗口算法
 	now := time.Now().Unix()
 	windowStart := now - int64(rrl.window.Seconds())
 
 	// 清理过期的记录
-	rrl.client.ZRemRangeByScore(ctx, redisKey, "0", strconv.FormatInt(windowStart, 10))
+	err := rrl.client.ZRemRangeByScore(ctx, redisKey, "0", strconv.FormatInt(windowStart, 10)).Err()
+	if err != nil {
+		logger.WithError(err).Error("清理过期限流记录失败")
+		return false
+	}
 
 	// 获取当前窗口内的请求数
 	count, err := rrl.client.ZCard(ctx, redisKey).Result()
 	if err != nil {
+		logger.WithError(err).Error("获取限流计数失败")
 		return false
 	}
 
 	if int(count) >= rrl.rate {
+		logger.WithFields(logger.Fields{
+			"key":           key,
+			"current_count": count,
+			"rate_limit":    rrl.rate,
+		}).Warn("Redis限流触发")
 		return false
 	}
 
 	// 添加当前请求
-	rrl.client.ZAdd(ctx, redisKey, &redis.Z{
+	err = rrl.client.ZAdd(ctx, redisKey, &redis.Z{
 		Score:  float64(now),
 		Member: fmt.Sprintf("%d", now),
-	})
+	}).Err()
+	if err != nil {
+		logger.WithError(err).Error("添加限流记录失败")
+		return false
+	}
 
 	// 设置过期时间
-	rrl.client.Expire(ctx, redisKey, rrl.window)
+	err = rrl.client.Expire(ctx, redisKey, rrl.window).Err()
+	if err != nil {
+		logger.WithError(err).Warn("设置限流记录过期时间失败")
+	}
+
+	logger.WithFields(logger.Fields{
+		"key":           key,
+		"current_count": count + 1,
+		"rate_limit":    rrl.rate,
+	}).Debug("Redis限流检查通过")
 
 	return true
 }
@@ -152,20 +194,35 @@ type Config struct {
 // NewRateLimiter 根据配置创建限流器
 func NewRateLimiter(config Config) (RateLimiter, error) {
 	if !config.Enabled {
+		logger.Info("限流功能已禁用")
 		return &NoOpLimiter{}, nil
 	}
 
+	logger.WithFields(logger.Fields{
+		"type":   config.Type,
+		"rate":   config.Rate,
+		"burst":  config.Burst,
+		"window": config.Window,
+	}).Info("初始化限流器")
+
 	switch config.Type {
 	case "memory":
+		logger.Info("创建内存令牌桶限流器")
 		return NewTokenBucketLimiter(rate.Limit(config.Rate), config.Burst), nil
 	case "redis":
+		logger.WithFields(logger.Fields{
+			"redis_addr": config.RedisAddr,
+			"redis_db":   config.RedisDB,
+		}).Info("创建Redis限流器")
 		rdb := redis.NewClient(&redis.Options{
 			Addr: config.RedisAddr,
 			DB:   config.RedisDB,
 		})
 		return NewRedisRateLimiter(rdb, config.Rate, config.Window), nil
 	default:
-		return nil, fmt.Errorf("unsupported rate limiter type: %s", config.Type)
+		err := fmt.Errorf("unsupported rate limiter type: %s", config.Type)
+		logger.WithError(err).Error("不支持的限流器类型")
+		return nil, err
 	}
 }
 

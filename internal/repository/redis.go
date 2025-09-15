@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
-	"log"
 	"student-management-system/internal/config"
+	"student-management-system/pkg/logger"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -13,35 +13,47 @@ import (
 var RedisClient *redis.Client
 
 // InitRedis 初始化Redis连接
-func InitRedis(cfg *config.Config) error {
-	// 创建Redis客户端
+func InitRedis() error {
+	cfg, err := config.Load("configs/config.yaml")
+	if err != nil {
+		logger.WithError(err).Error("Failed to load config for Redis")
+		return fmt.Errorf("加载配置失败: %v", err)
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"host": cfg.Redis.Host,
+		"port": cfg.Redis.Port,
+		"db":   cfg.Redis.DB,
+	}).Info("Connecting to Redis")
+
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr:         fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
-		Password:     cfg.Redis.Password,
-		DB:           cfg.Redis.DB,
-		PoolSize:     cfg.Redis.PoolSize,
-		MinIdleConns: cfg.Redis.MinIdleConns,
+		Addr:     fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
 	})
 
 	// 测试连接
 	ctx := context.Background()
-	pong, err := RedisClient.Ping(ctx).Result()
+	_, err = RedisClient.Ping(ctx).Result()
 	if err != nil {
-		log.Printf("Redis连接失败，将在无缓存模式下运行: %v", err)
+		logger.WithError(err).Error("Redis connection test failed")
+		// 允许程序在没有Redis的情况下运行
 		RedisClient = nil
-		return nil // 不返回错误，允许程序继续运行
+		logger.Warn("Redis connection failed, running without cache")
+		return nil
 	}
 
-	log.Printf("Redis连接成功: %s", pong)
+	logger.Info("Successfully connected to Redis")
 	return nil
 }
 
 // CloseRedis 关闭Redis连接
-func CloseRedis() {
+func CloseRedis() error {
 	if RedisClient != nil {
-		RedisClient.Close()
-		log.Println("Redis连接已关闭")
+		logger.Info("Closing Redis connection")
+		return RedisClient.Close()
 	}
+	return nil
 }
 
 // GetRedisClient 获取Redis客户端

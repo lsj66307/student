@@ -20,7 +20,6 @@ type Config struct {
 	Server    ServerConfig    `mapstructure:"server"`
 	CORS      CORSConfig      `mapstructure:"cors"`
 	RateLimit RateLimitConfig `mapstructure:"rateLimit"`
-	Cache     CacheConfig     `mapstructure:"cache"`
 }
 
 // AppConfig 应用配置
@@ -104,15 +103,6 @@ type RateLimitConfig struct {
 	RedisDB   int           `mapstructure:"redis_db"`
 }
 
-// CacheConfig 缓存配置
-type CacheConfig struct {
-	Enabled    bool          `mapstructure:"enabled"`
-	RedisAddr  string        `mapstructure:"redis_addr"`
-	RedisDB    int           `mapstructure:"redis_db"`
-	Prefix     string        `mapstructure:"prefix"`
-	DefaultTTL time.Duration `mapstructure:"default_ttl"`
-}
-
 // Load 加载配置文件
 func Load(configPath string) (*Config, error) {
 	viper.SetConfigFile(configPath)
@@ -188,6 +178,14 @@ func setDefaults() {
 	viper.SetDefault("jwt.expires_in", 86400)
 	viper.SetDefault("jwt.issuer", "student-management-system")
 
+	// Redis defaults
+	viper.SetDefault("redis.host", "localhost")
+	viper.SetDefault("redis.port", 6379)
+	viper.SetDefault("redis.password", "")
+	viper.SetDefault("redis.db", 0)
+	viper.SetDefault("redis.pool_size", 10)
+	viper.SetDefault("redis.min_idle_conns", 5)
+
 	// Server defaults
 	viper.SetDefault("server.read_timeout", 30)
 	viper.SetDefault("server.write_timeout", 30)
@@ -201,6 +199,15 @@ func setDefaults() {
 	viper.SetDefault("cors.expose_headers", []string{"Content-Length"})
 	viper.SetDefault("cors.allow_credentials", true)
 	viper.SetDefault("cors.max_age", 86400)
+
+	// RateLimit defaults
+	viper.SetDefault("rateLimit.enabled", true)
+	viper.SetDefault("rateLimit.type", "memory")
+	viper.SetDefault("rateLimit.rate", 100)
+	viper.SetDefault("rateLimit.burst", 200)
+	viper.SetDefault("rateLimit.window", 60)
+	viper.SetDefault("rateLimit.redis_addr", "localhost:6379")
+	viper.SetDefault("rateLimit.redis_db", 1)
 }
 
 // GetDSN 获取数据库连接字符串
@@ -237,6 +244,11 @@ func (c *AppConfig) IsTest() bool {
 	return c.Mode == "test"
 }
 
+// GetRedisAddr 获取Redis连接地址
+func (c *RedisConfig) GetRedisAddr() string {
+	return fmt.Sprintf("%s:%d", c.Host, c.Port)
+}
+
 // expandEnvVars 展开环境变量
 func expandEnvVars(config *Config) error {
 	// 数据库配置
@@ -246,6 +258,8 @@ func expandEnvVars(config *Config) error {
 	if port := os.Getenv("DATABASE_PORT"); port != "" {
 		if p, err := strconv.Atoi(port); err == nil {
 			config.Database.Port = p
+		} else {
+			return fmt.Errorf("无效的数据库端口: %s", port)
 		}
 	}
 	if username := os.Getenv("DATABASE_USERNAME"); username != "" {
@@ -270,10 +284,19 @@ func expandEnvVars(config *Config) error {
 	if port := os.Getenv("REDIS_PORT"); port != "" {
 		if p, err := strconv.Atoi(port); err == nil {
 			config.Redis.Port = p
+		} else {
+			return fmt.Errorf("无效的Redis端口: %s", port)
 		}
 	}
 	if password := os.Getenv("REDIS_PASSWORD"); password != "" {
 		config.Redis.Password = password
+	}
+	if db := os.Getenv("REDIS_DB"); db != "" {
+		if d, err := strconv.Atoi(db); err == nil {
+			config.Redis.DB = d
+		} else {
+			return fmt.Errorf("无效的Redis数据库编号: %s", db)
+		}
 	}
 
 	return nil

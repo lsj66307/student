@@ -15,16 +15,16 @@ var (
 // Admin 管理员模型
 type Admin struct {
 	ID        int       `json:"id" db:"id"`
-	Username  string    `json:"username" db:"username"`
-	Password  string    `json:"-" db:"password"` // 不在JSON中显示密码
+	Username  string    `json:"username" db:"username" validate:"required,min=3,max=20,alphanum,nohtml,nosql"`
+	Password  string    `json:"-" db:"password" validate:"required,min=6,max=100"` // 不在JSON中显示密码
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // LoginRequest 登录请求结构体
 type LoginRequest struct {
-	Username string `json:"username" binding:"required" example:"admin"`
-	Password string `json:"password" binding:"required" example:"123456"`
+	Username string `json:"username" validate:"required,min=3,max=20,alphanum,nohtml,nosql" example:"admin"`
+	Password string `json:"password" validate:"required,min=6,max=100" example:"123456"`
 }
 
 // LoginResponse 登录响应结构体

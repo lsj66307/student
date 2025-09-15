@@ -3,8 +3,8 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"student-management-system/internal/config"
+	"student-management-system/pkg/logger"
 
 	_ "github.com/lib/pq"
 )
@@ -27,12 +27,16 @@ func InitDB() error {
 	// 加载配置
 	cfg, err := config.Load("configs/config.yaml")
 	if err != nil {
+		logger.WithError(err).Error("Failed to load config")
 		return fmt.Errorf("加载配置失败: %v", err)
 	}
 
 	var defaultDB *sql.DB
 
-	log.Printf("正在连接到 PostgreSQL: %s:%d", cfg.Database.Host, cfg.Database.Port)
+	logger.WithFields(map[string]interface{}{
+		"host": cfg.Database.Host,
+		"port": cfg.Database.Port,
+	}).Info("Connecting to PostgreSQL")
 
 	// 先连接到默认的postgres数据库
 	defaultConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
@@ -40,22 +44,24 @@ func InitDB() error {
 
 	defaultDB, err = sql.Open("postgres", defaultConnStr)
 	if err != nil {
+		logger.WithError(err).Error("Failed to open database connection")
 		return fmt.Errorf("打开数据库连接失败: %v", err)
 	}
 
 	// 测试连接
 	err = defaultDB.Ping()
 	if err != nil {
+		logger.WithError(err).Error("Database connection test failed")
 		return fmt.Errorf("数据库连接测试失败: %v", err)
 	}
 
-	log.Printf("成功连接到PostgreSQL")
+	logger.Info("Successfully connected to PostgreSQL")
 
 	// 创建student_management数据库（如果不存在）
 	_, err = defaultDB.Exec("CREATE DATABASE " + cfg.Database.DBName)
 	if err != nil {
 		// 数据库可能已存在，忽略错误
-		log.Println("数据库可能已存在:", err)
+		logger.WithError(err).Warn("Database may already exist")
 	}
 	defaultDB.Close()
 
@@ -65,6 +71,9 @@ func InitDB() error {
 
 	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"database": cfg.Database.DBName,
+		}).Error("Failed to connect to target database")
 		return fmt.Errorf("连接目标数据库失败: %v", err)
 	}
 
@@ -76,16 +85,23 @@ func InitDB() error {
 	// 测试连接
 	err = DB.Ping()
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"database": cfg.Database.DBName,
+		}).Error("Target database ping failed")
 		return fmt.Errorf("目标数据库ping失败: %v", err)
 	}
 
-	log.Println("成功连接到student_management数据库")
+	logger.WithFields(map[string]interface{}{
+		"database":        cfg.Database.DBName,
+		"max_idle_conns":  cfg.Database.MaxIdleConns,
+		"max_open_conns":  cfg.Database.MaxOpenConns,
+	}).Info("Successfully connected to student_management database")
 	return nil
 }
 
 // CreateTables 创建数据库表
 func CreateTables() error {
-	log.Println("正在创建数据库表...")
+	logger.Info("Creating database tables...")
 
 	// 创建学生表
 	studentsTable := `
@@ -109,6 +125,7 @@ func CreateTables() error {
 
 	_, err := DB.Exec(studentsTable)
 	if err != nil {
+		logger.WithError(err).Error("Failed to create students table")
 		return fmt.Errorf("failed to create students table: %v", err)
 	}
 
@@ -117,9 +134,13 @@ func CreateTables() error {
 	CREATE TABLE IF NOT EXISTS teachers (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(100) NOT NULL,
-		subject VARCHAR(50) NOT NULL,
+		age INTEGER,
+		gender VARCHAR(10),
 		email VARCHAR(100),
 		phone VARCHAR(20),
+		subject VARCHAR(50) NOT NULL,
+		title VARCHAR(50),
+		department VARCHAR(100),
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
@@ -127,6 +148,7 @@ func CreateTables() error {
 
 	_, err = DB.Exec(teachersTable)
 	if err != nil {
+		logger.WithError(err).Error("Failed to create teachers table")
 		return fmt.Errorf("failed to create teachers table: %v", err)
 	}
 
@@ -154,6 +176,7 @@ func CreateTables() error {
 
 	_, err = DB.Exec(gradesTable)
 	if err != nil {
+		logger.WithError(err).Error("Failed to create grades table")
 		return fmt.Errorf("failed to create grades table: %v", err)
 	}
 
@@ -170,6 +193,7 @@ func CreateTables() error {
 
 	_, err = DB.Exec(updateFunction)
 	if err != nil {
+		logger.WithError(err).Error("Failed to create update function")
 		return fmt.Errorf("failed to create update function: %v", err)
 	}
 
@@ -184,6 +208,7 @@ func CreateTables() error {
 
 	_, err = DB.Exec(studentTrigger)
 	if err != nil {
+		logger.WithError(err).Error("Failed to create students trigger")
 		return fmt.Errorf("failed to create students trigger: %v", err)
 	}
 
@@ -198,6 +223,7 @@ func CreateTables() error {
 
 	_, err = DB.Exec(teacherTrigger)
 	if err != nil {
+		logger.WithError(err).Error("Failed to create teachers trigger")
 		return fmt.Errorf("failed to create teachers trigger: %v", err)
 	}
 
@@ -212,16 +238,18 @@ func CreateTables() error {
 
 	_, err = DB.Exec(gradeTrigger)
 	if err != nil {
+		logger.WithError(err).Error("Failed to create grades trigger")
 		return fmt.Errorf("failed to create grades trigger: %v", err)
 	}
 
-	log.Println("数据库表创建成功")
+	logger.Info("Database tables created successfully")
 	return nil
 }
 
 // CloseDB 关闭数据库连接
 func CloseDB() error {
 	if DB != nil {
+		logger.Info("Closing database connection")
 		return DB.Close()
 	}
 	return nil

@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
 	"student-management-system/internal/config"
 	handler "student-management-system/internal/handler"
 	repo "student-management-system/internal/repository"
-	"student-management-system/pkg/cache"
 	"student-management-system/pkg/errors"
 	"student-management-system/pkg/logger"
 	"student-management-system/pkg/ratelimit"
+	"syscall"
 )
 
 func main() {
@@ -29,10 +33,10 @@ func main() {
 		loggerConfig.FilePath = cfg.Log.FilePath
 	}
 	if err := logger.Init(loggerConfig); err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		log.Fatalf("初始化日志系统失败: %v", err)
 	}
 
-	logger.Info("Starting student management system")
+	logger.Info("正在启动学生管理系统")
 
 	// 初始化数据库连接
 	logger.Info("正在初始化数据库连接...")
@@ -41,11 +45,11 @@ func main() {
 		logger.WithError(err).Fatal("数据库连接失败")
 	}
 	defer repo.CloseDB()
-	logger.Info("Database connection established")
+	logger.Info("数据库连接已建立")
 
 	// 初始化Redis连接
 	logger.Info("正在初始化Redis连接...")
-	err = repo.InitRedis(cfg)
+	err = repo.InitRedis()
 	if err != nil {
 		logger.WithError(err).Fatal("Redis连接失败")
 	}
@@ -74,21 +78,6 @@ func main() {
 		logger.WithError(err).Fatal("创建限流器失败")
 	}
 
-	// 初始化缓存
-	logger.Info("正在初始化缓存...")
-	cacheConfig := cache.Config{
-		Enabled:    cfg.Cache.Enabled,
-		RedisAddr:  cfg.Cache.RedisAddr,
-		RedisDB:    cfg.Cache.RedisDB,
-		Prefix:     cfg.Cache.Prefix,
-		DefaultTTL: cfg.Cache.DefaultTTL,
-	}
-	cacheInstance, err := cache.NewCache(cacheConfig)
-	if err != nil {
-		logger.WithError(err).Fatal("创建缓存失败")
-	}
-	cacheMiddleware := cache.NewCacheMiddleware(cacheInstance, cfg.Cache.DefaultTTL)
-
 	// 设置路由
 	logger.Info("正在设置路由...")
 	router := handler.SetupRoutes(cfg)
@@ -97,7 +86,15 @@ func main() {
 	router.Use(rateLimiter.Middleware())
 	router.Use(errors.Recovery())
 	router.Use(errors.LoggingMiddleware())
-	router.Use(cacheMiddleware.Middleware())
+
+	// 创建HTTP服务器
+	srv := &http.Server{
+		Addr:         ":3060",
+		Handler:      router,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
+	}
 
 	// 启动服务器
 	logger.Info("学生管理系统启动中...")
@@ -106,8 +103,25 @@ func main() {
 	logger.Info("健康检查: http://localhost:3060/health")
 	logger.Info("按 Ctrl+C 停止服务器")
 
-	// 在端口3060启动服务器
-	if err := router.Run(":3060"); err != nil {
-		logger.WithError(err).Fatal("启动服务器失败")
+	// 在goroutine中启动服务器
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.WithError(err).Fatal("启动服务器失败")
+		}
+	}()
+
+	// 等待中断信号以优雅地关闭服务器
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("正在关闭服务器...")
+
+	// 优雅关闭服务器，等待现有连接完成
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.WithError(err).Fatal("服务器强制关闭")
 	}
+
+	logger.Info("服务器已关闭")
 }
