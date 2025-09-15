@@ -69,7 +69,7 @@ func InitDB() error {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Database.Host, cfg.Database.Port, cfg.Database.Username, cfg.Database.Password, cfg.Database.DBName)
 
-	DB, err = sql.Open("student_management", connStr)
+	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
 		logger.WithError(err).WithFields(map[string]interface{}{
 			"database": cfg.Database.DBName,

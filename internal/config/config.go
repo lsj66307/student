@@ -198,7 +198,7 @@ func setDefaults() {
 	viper.SetDefault("cors.allow_headers", []string{"Origin", "Content-Type", "Accept", "Authorization"})
 	viper.SetDefault("cors.expose_headers", []string{"Content-Length"})
 	viper.SetDefault("cors.allow_credentials", true)
-	viper.SetDefault("cors.max_age", 86400)
+	viper.SetDefault("cors.max_age", 2)
 
 	// RateLimit defaults
 	viper.SetDefault("rateLimit.enabled", true)

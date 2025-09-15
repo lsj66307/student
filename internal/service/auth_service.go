@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
+	"crypto/md5"
 	"fmt"
 	"time"
 
@@ -160,10 +160,10 @@ func (s *AuthService) validateCredentials(account, password string) (*domain.Adm
 	return admin, nil
 }
 
-// hashPassword 简单的密码哈希（仅用于演示，生产环境应使用bcrypt）
+// hashPassword 简单的密码哈希（使用MD5）
 func (s *AuthService) hashPassword(password string) string {
-	h := sha256.New()
-	h.Write([]byte(password + "salt")) // 添加盐值
+	h := md5.New()
+	h.Write([]byte(password))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 

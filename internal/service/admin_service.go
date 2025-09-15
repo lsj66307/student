@@ -1,12 +1,13 @@
 package service
 
 import (
+	"crypto/md5"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
-	"golang.org/x/crypto/bcrypt"
 	"student-management-system/internal/domain"
 	"student-management-system/internal/repository"
+
+	"github.com/sirupsen/logrus"
 )
 
 type AdminService struct {
@@ -30,16 +31,12 @@ func (s *AdminService) CreateAdmin(req *domain.CreateAdminRequest) (*domain.Admi
 	}
 
 	// 密码加密
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		s.logger.WithError(err).Error("Failed to hash password")
-		return nil, fmt.Errorf("密码加密失败")
-	}
+	hashedPassword := s.hashPassword(req.Password)
 
 	// 创建管理员对象
 	admin := &domain.Admin{
 		Account:  req.Account,
-		Password: string(hashedPassword),
+		Password: hashedPassword,
 		Name:     req.Name,
 		Phone:    req.Phone,
 		Email:    req.Email,
@@ -112,12 +109,7 @@ func (s *AdminService) UpdateAdmin(id int, req *domain.UpdateAdminRequest) (*dom
 
 	// 如果要更新密码
 	if req.Password != "" {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if err != nil {
-			s.logger.WithError(err).Error("Failed to hash password")
-			return nil, fmt.Errorf("密码加密失败")
-		}
-		admin.Password = string(hashedPassword)
+		admin.Password = s.hashPassword(req.Password)
 	}
 
 	// 保存更新
@@ -208,12 +200,18 @@ func (s *AdminService) ValidateAdmin(account, password string) (*domain.Admin, e
 	}
 
 	// 验证密码
-	err = bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(password))
-	if err != nil {
+	if s.hashPassword(password) != admin.Password {
 		return nil, fmt.Errorf("账号或密码错误")
 	}
 
 	return admin, nil
+}
+
+// hashPassword MD5密码加密
+func (s *AdminService) hashPassword(password string) string {
+	h := md5.New()
+	h.Write([]byte(password))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 // GetAdminInfo 获取管理员信息（不包含密码）

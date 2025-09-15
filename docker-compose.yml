@@ -14,7 +14,7 @@ services:
       - APP_CONFIG=/root/configs/config.yaml
       - DB_HOST=192.168.31.114
       - DB_PORT=5432
-      - DB_USER=student_user
+      - DB_USER=postgres
       - DB_PASSWORD=student_password
       - DB_NAME=student_db
       - REDIS_HOST=192.168.31.114
@@ -41,32 +41,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # PostgreSQL服务运行在外部服务器 192.168.31.114:5432
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: student-postgres
-  #   environment:
-  #     - POSTGRES_DB=student_management
-  #     - POSTGRES_USER=student_user
-  #     - POSTGRES_PASSWORD=student_password
-  #     - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
-  #   ports:
-  #     - "5432:5432"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-  #   networks:
-  #     - student-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U student_user -d student_management"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-  # Redis 缓存服务 - 使用外部Redis (192.168.31.114)
-  # redis服务已移除，使用外部Redis服务器
 
 # 网络配置
 networks:
