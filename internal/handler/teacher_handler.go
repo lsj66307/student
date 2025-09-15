@@ -15,9 +15,9 @@ type TeacherHandler struct {
 }
 
 // NewTeacherHandler 创建新的老师处理器
-func NewTeacherHandler() *TeacherHandler {
+func NewTeacherHandler(teacherService *service.TeacherService) *TeacherHandler {
 	return &TeacherHandler{
-		teacherService: service.NewTeacherService(),
+		teacherService: teacherService,
 	}
 }
 

@@ -133,9 +133,25 @@ func AdminRequired() gin.HandlerFunc {
 			return
 		}
 
-		// 这里可以添加更多的权限检查逻辑
-		// 例如检查用户角色、权限等
-		_ = jwtClaims // 暂时不做额外检查，所有通过JWT认证的用户都被视为管理员
+		// 检查管理员ID是否有效
+		if jwtClaims.AdminID <= 0 {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Error:   "Forbidden",
+				Message: "Invalid admin ID",
+			})
+			c.Abort()
+			return
+		}
+
+		// 检查用户名是否为空
+		if jwtClaims.Username == "" {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Error:   "Forbidden",
+				Message: "Invalid username",
+			})
+			c.Abort()
+			return
+		}
 
 		// 继续处理请求
 		c.Next()

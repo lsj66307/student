@@ -1,215 +1,353 @@
 package service
 
 import (
-	"database/sql"
 	"fmt"
-	"student-management-system/internal/repository"
 	"student-management-system/internal/domain"
-	"time"
+	"student-management-system/internal/repository"
+	"student-management-system/pkg/logger"
 )
 
 // StudentService 学生服务结构
 type StudentService struct {
-	db *sql.DB
+	repo repository.StudentRepository
 }
 
 // NewStudentService 创建新的学生服务实例
 func NewStudentService() *StudentService {
 	return &StudentService{
-		db: repository.DB,
+		repo: repository.NewStudentRepository(repository.DB),
 	}
 }
 
 // CreateStudent 创建新学生
 func (s *StudentService) CreateStudent(req domain.CreateStudentRequest) (*domain.Student, error) {
-	query := `
-		INSERT INTO students (name, age, gender, email, phone, major, grade)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, name, age, gender, email, phone, major, grade, created_at, updated_at
-	`
+	logger.WithFields(map[string]interface{}{
+		"name":       req.Name,
+		"email":      req.Email,
+		"student_id": req.StudentID,
+	}).Info("Creating new student")
 
-	student := &domain.Student{}
-	err := s.db.QueryRow(query, req.Name, req.Age, req.Gender, req.Email, req.Phone, req.Major, req.Grade).Scan(
-		&student.ID, &student.Name, &student.Age, &student.Gender,
-		&student.Email, &student.Phone, &student.Major, &student.Grade,
-		&student.CreatedAt, &student.UpdatedAt,
-	)
+	student := &domain.Student{
+		StudentID:      req.StudentID,
+		Name:           req.Name,
+		Age:            req.Age,
+		Gender:         req.Gender,
+		Phone:          req.Phone,
+		Email:          req.Email,
+		Address:        req.Address,
+		Major:          req.Major,
+		EnrollmentDate: req.EnrollmentDate,
+		GraduationDate: req.GraduationDate,
+		Status:         req.Status,
+	}
 
+	// 如果状态为空，设置默认值
+	if student.Status == "" {
+		student.Status = "active"
+	}
+
+	err := s.repo.Create(student)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"name":       req.Name,
+			"email":      req.Email,
+			"student_id": req.StudentID,
+		}).Error("Failed to create student")
 		return nil, fmt.Errorf("failed to create student: %v", err)
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"student_id": student.ID,
+		"name":       student.Name,
+	}).Info("Student created successfully")
 
 	return student, nil
 }
 
 // GetStudentByID 根据ID获取学生信息
 func (s *StudentService) GetStudentByID(id int) (*domain.Student, error) {
-	query := `
-		SELECT id, name, age, gender, email, phone, major, grade, created_at, updated_at
-		FROM students
-		WHERE id = $1
-	`
+	logger.WithFields(map[string]interface{}{
+		"student_id": id,
+	}).Info("Getting student by ID")
 
-	student := &domain.Student{}
-	err := s.db.QueryRow(query, id).Scan(
-		&student.ID, &student.Name, &student.Age, &student.Gender,
-		&student.Email, &student.Phone, &student.Major, &student.Grade,
-		&student.CreatedAt, &student.UpdatedAt,
-	)
-
+	student, err := s.repo.GetByID(id)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("student not found")
-		}
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": id,
+		}).Error("Failed to get student")
 		return nil, fmt.Errorf("failed to get student: %v", err)
+	}
+
+	if student == nil {
+		logger.WithFields(map[string]interface{}{
+			"student_id": id,
+		}).Warn("Student not found")
+		return nil, fmt.Errorf("student with ID %d not found", id)
 	}
 
 	return student, nil
 }
 
-// GetAllStudents 获取所有学生列表
+// GetAllStudents 获取所有学生信息（分页）
 func (s *StudentService) GetAllStudents(page, pageSize int) ([]*domain.Student, int, error) {
+	logger.WithFields(map[string]interface{}{
+		"page":      page,
+		"page_size": pageSize,
+	}).Info("Getting all students")
+
 	// 计算偏移量
 	offset := (page - 1) * pageSize
 
+	// 获取学生列表
+	students, err := s.repo.List(offset, pageSize)
+	if err != nil {
+		logger.WithError(err).Error("Failed to get students list")
+		return nil, 0, fmt.Errorf("failed to get students: %v", err)
+	}
+
 	// 获取总数
-	countQuery := "SELECT COUNT(*) FROM students"
-	var total int
-	err := s.db.QueryRow(countQuery).Scan(&total)
+	total, err := s.repo.Count()
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count students: %v", err)
+		logger.WithError(err).Error("Failed to get students count")
+		return nil, 0, fmt.Errorf("failed to get students count: %v", err)
 	}
 
-	// 获取分页数据
-	query := `
-		SELECT id, name, age, gender, email, phone, major, grade, created_at, updated_at
-		FROM students
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`
-
-	rows, err := s.db.Query(query, pageSize, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to query students: %v", err)
-	}
-	defer rows.Close()
-
-	var students []*domain.Student
-	for rows.Next() {
-		student := &domain.Student{}
-		err := rows.Scan(
-			&student.ID, &student.Name, &student.Age, &student.Gender,
-			&student.Email, &student.Phone, &student.Major, &student.Grade,
-			&student.CreatedAt, &student.UpdatedAt,
-		)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan student: %v", err)
-		}
-		students = append(students, student)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("rows error: %v", err)
-	}
+	logger.WithFields(map[string]interface{}{
+		"count": len(students),
+		"total": total,
+	}).Info("Students retrieved successfully")
 
 	return students, total, nil
 }
 
 // UpdateStudent 更新学生信息
 func (s *StudentService) UpdateStudent(id int, req domain.UpdateStudentRequest) (*domain.Student, error) {
-	// 构建动态更新查询
-	setClauses := []string{}
-	args := []interface{}{}
-	argIndex := 1
+	logger.WithFields(map[string]interface{}{
+		"student_id": id,
+		"name":       req.Name,
+	}).Info("Updating student")
 
+	// 先获取现有学生信息
+	student, err := s.repo.GetByID(id)
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": id,
+		}).Error("Failed to get student for update")
+		return nil, fmt.Errorf("failed to get student: %v", err)
+	}
+
+	if student == nil {
+		return nil, fmt.Errorf("student with ID %d not found", id)
+	}
+
+	// 更新字段（只更新非空字段）
+	if req.StudentID != "" {
+		student.StudentID = req.StudentID
+	}
 	if req.Name != "" {
-		setClauses = append(setClauses, fmt.Sprintf("name = $%d", argIndex))
-		args = append(args, req.Name)
-		argIndex++
+		student.Name = req.Name
 	}
 	if req.Age > 0 {
-		setClauses = append(setClauses, fmt.Sprintf("age = $%d", argIndex))
-		args = append(args, req.Age)
-		argIndex++
+		student.Age = req.Age
 	}
 	if req.Gender != "" {
-		setClauses = append(setClauses, fmt.Sprintf("gender = $%d", argIndex))
-		args = append(args, req.Gender)
-		argIndex++
-	}
-	if req.Email != "" {
-		setClauses = append(setClauses, fmt.Sprintf("email = $%d", argIndex))
-		args = append(args, req.Email)
-		argIndex++
+		student.Gender = req.Gender
 	}
 	if req.Phone != "" {
-		setClauses = append(setClauses, fmt.Sprintf("phone = $%d", argIndex))
-		args = append(args, req.Phone)
-		argIndex++
+		student.Phone = req.Phone
+	}
+	if req.Email != "" {
+		student.Email = req.Email
+	}
+	if req.Address != "" {
+		student.Address = req.Address
 	}
 	if req.Major != "" {
-		setClauses = append(setClauses, fmt.Sprintf("major = $%d", argIndex))
-		args = append(args, req.Major)
-		argIndex++
+		student.Major = req.Major
 	}
-	if req.Grade != "" {
-		setClauses = append(setClauses, fmt.Sprintf("grade = $%d", argIndex))
-		args = append(args, req.Grade)
-		argIndex++
+	if req.EnrollmentDate != nil {
+		student.EnrollmentDate = req.EnrollmentDate
 	}
-
-	if len(setClauses) == 0 {
-		return nil, fmt.Errorf("no fields to update")
+	if req.GraduationDate != nil {
+		student.GraduationDate = req.GraduationDate
+	}
+	if req.Status != "" {
+		student.Status = req.Status
 	}
 
-	// 添加updated_at字段
-	setClauses = append(setClauses, fmt.Sprintf("updated_at = $%d", argIndex))
-	args = append(args, time.Now())
-	argIndex++
-
-	// 添加WHERE条件的ID
-	args = append(args, id)
-
-	query := fmt.Sprintf(`
-		UPDATE students
-		SET %s
-		WHERE id = $%d
-		RETURNING id, name, age, gender, email, phone, major, grade, created_at, updated_at
-	`, fmt.Sprintf("%s", setClauses), argIndex)
-
-	student := &domain.Student{}
-	err := s.db.QueryRow(query, args...).Scan(
-		&student.ID, &student.Name, &student.Age, &student.Gender,
-		&student.Email, &student.Phone, &student.Major, &student.Grade,
-		&student.CreatedAt, &student.UpdatedAt,
-	)
-
+	err = s.repo.Update(student)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("student not found")
-		}
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": id,
+		}).Error("Failed to update student")
 		return nil, fmt.Errorf("failed to update student: %v", err)
 	}
+
+	logger.WithFields(map[string]interface{}{
+		"student_id": id,
+		"name":       student.Name,
+	}).Info("Student updated successfully")
 
 	return student, nil
 }
 
 // DeleteStudent 删除学生
 func (s *StudentService) DeleteStudent(id int) error {
-	query := "DELETE FROM students WHERE id = $1"
-	result, err := s.db.Exec(query, id)
+	logger.WithFields(map[string]interface{}{
+		"student_id": id,
+	}).Info("Deleting student")
+
+	// 检查学生是否存在
+	student, err := s.repo.GetByID(id)
 	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": id,
+		}).Error("Failed to get student for deletion")
+		return fmt.Errorf("failed to get student: %v", err)
+	}
+
+	if student == nil {
+		return fmt.Errorf("student with ID %d not found", id)
+	}
+
+	err = s.repo.Delete(id)
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": id,
+		}).Error("Failed to delete student")
 		return fmt.Errorf("failed to delete student: %v", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %v", err)
+	logger.WithFields(map[string]interface{}{
+		"student_id": id,
+	}).Info("Student deleted successfully")
+
+	return nil
+}
+
+// BatchCreateStudents 批量创建学生
+func (s *StudentService) BatchCreateStudents(requests []domain.CreateStudentRequest) ([]*domain.Student, error) {
+	logger.WithFields(map[string]interface{}{
+		"count": len(requests),
+	}).Info("Batch creating students")
+
+	if len(requests) == 0 {
+		return nil, fmt.Errorf("no students to create")
 	}
 
-	if rowsAffected == 0 {
-		return fmt.Errorf("student not found")
+	if len(requests) > 100 {
+		return nil, fmt.Errorf("cannot create more than 100 students at once")
 	}
+
+	var students []*domain.Student
+	for _, req := range requests {
+		student := &domain.Student{
+			StudentID:      req.StudentID,
+			Name:           req.Name,
+			Age:            req.Age,
+			Gender:         req.Gender,
+			Phone:          req.Phone,
+			Email:          req.Email,
+			Address:        req.Address,
+			Major:          req.Major,
+			EnrollmentDate: req.EnrollmentDate,
+			GraduationDate: req.GraduationDate,
+			Status:         req.Status,
+		}
+
+		// 如果状态为空，设置默认值
+		if student.Status == "" {
+			student.Status = "active"
+		}
+
+		students = append(students, student)
+	}
+
+	err := s.repo.BatchCreate(students)
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"count": len(requests),
+		}).Error("Failed to batch create students")
+		return nil, fmt.Errorf("failed to batch create students: %v", err)
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"count": len(students),
+	}).Info("Students batch created successfully")
+
+	return students, nil
+}
+
+// BatchDeleteStudents 批量删除学生
+func (s *StudentService) BatchDeleteStudents(ids []int) error {
+	logger.WithFields(map[string]interface{}{
+		"count": len(ids),
+		"ids":   ids,
+	}).Info("Batch deleting students")
+
+	if len(ids) == 0 {
+		return fmt.Errorf("no student IDs provided")
+	}
+
+	if len(ids) > 100 {
+		return fmt.Errorf("cannot delete more than 100 students at once")
+	}
+
+	err := s.repo.BatchDelete(ids)
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"count": len(ids),
+			"ids":   ids,
+		}).Error("Failed to batch delete students")
+		return fmt.Errorf("failed to batch delete students: %v", err)
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"count": len(ids),
+	}).Info("Students batch deleted successfully")
+
+	return nil
+}
+
+// TransferStudentMajor 转专业
+func (s *StudentService) TransferStudentMajor(studentID int, newMajor string, reason string) error {
+	logger.WithFields(map[string]interface{}{
+		"student_id": studentID,
+		"new_major":  newMajor,
+		"reason":     reason,
+	}).Info("Transferring student major")
+
+	// 检查学生是否存在
+	student, err := s.repo.GetByID(studentID)
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": studentID,
+		}).Error("Failed to get student for major transfer")
+		return fmt.Errorf("failed to get student: %v", err)
+	}
+
+	if student == nil {
+		return fmt.Errorf("student with ID %d not found", studentID)
+	}
+
+	oldMajor := student.Major
+
+	// 更新专业
+	err = s.repo.UpdateMajor(studentID, newMajor)
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"student_id": studentID,
+			"old_major":  oldMajor,
+			"new_major":  newMajor,
+		}).Error("Failed to transfer student major")
+		return fmt.Errorf("failed to transfer student major: %v", err)
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"student_id": studentID,
+		"old_major":  oldMajor,
+		"new_major":  newMajor,
+	}).Info("Student major transferred successfully")
 
 	return nil
 }

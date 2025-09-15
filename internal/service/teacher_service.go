@@ -3,8 +3,8 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"student-management-system/internal/repository"
 	"student-management-system/internal/domain"
+	"student-management-system/internal/repository"
 	"time"
 )
 

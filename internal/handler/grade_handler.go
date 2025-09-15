@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"student-management-system/internal/service"
 	"student-management-system/internal/domain"
+	"student-management-system/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ type GradeHandler struct {
 	gradeService *service.GradeService
 }
 
-// NewGradeHandler 创建成绩处理器实例
+// NewGradeHandler 创建新的成绩处理器
 func NewGradeHandler(gradeService *service.GradeService) *GradeHandler {
 	return &GradeHandler{
 		gradeService: gradeService,
@@ -36,28 +36,26 @@ func NewGradeHandler(gradeService *service.GradeService) *GradeHandler {
 func (h *GradeHandler) CreateGrade(c *gin.Context) {
 	var req domain.CreateGradeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-			"data":    nil,
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    400,
+			Message: "请求参数错误: " + err.Error(),
 		})
 		return
 	}
 
 	grade, err := h.gradeService.CreateGrade(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "创建成绩失败: " + err.Error(),
-			"data":    nil,
+		c.JSON(http.StatusInternalServerError, Response{
+			Code:    500,
+			Message: "创建成绩失败: " + err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"code":    201,
-		"message": "成绩创建成功",
-		"data":    grade,
+	c.JSON(http.StatusCreated, Response{
+		Code:    201,
+		Message: "成绩创建成功",
+		Data:    grade,
 	})
 }
 
@@ -104,21 +102,20 @@ func (h *GradeHandler) GetGrades(c *gin.Context) {
 
 	grades, total, err := h.gradeService.GetAllGrades(params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取成绩列表失败: " + err.Error(),
-			"data":    nil,
+		c.JSON(http.StatusInternalServerError, Response{
+			Code:    500,
+			Message: "获取成绩列表失败: " + err.Error(),
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    grades,
-		"total":   total,
-		"page":    params.Page,
-		"size":    params.Size,
+	c.JSON(http.StatusOK, PaginatedResponse{
+		Code:    200,
+		Message: "获取成功",
+		Data:    grades,
+		Total:   total,
+		Page:    params.Page,
+		Size:    params.Size,
 	})
 }
 
@@ -138,10 +135,9 @@ func (h *GradeHandler) GetGrade(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的成绩ID",
-			"data":    nil,
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    400,
+			Message: "无效的成绩ID",
 		})
 		return
 	}
@@ -149,25 +145,23 @@ func (h *GradeHandler) GetGrade(c *gin.Context) {
 	grade, err := h.gradeService.GetGradeByID(id)
 	if err != nil {
 		if err.Error() == "成绩不存在" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"code":    404,
-				"message": "成绩不存在",
-				"data":    nil,
+			c.JSON(http.StatusNotFound, Response{
+				Code:    404,
+				Message: "成绩不存在",
 			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "获取成绩失败: " + err.Error(),
-				"data":    nil,
+			c.JSON(http.StatusInternalServerError, Response{
+				Code:    500,
+				Message: "获取成绩失败: " + err.Error(),
 			})
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "获取成功",
-		"data":    grade,
+	c.JSON(http.StatusOK, Response{
+		Code:    200,
+		Message: "获取成功",
+		Data:    grade,
 	})
 }
 
@@ -188,20 +182,18 @@ func (h *GradeHandler) UpdateGrade(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的成绩ID",
-			"data":    nil,
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    400,
+			Message: "无效的成绩ID",
 		})
 		return
 	}
 
 	var req domain.UpdateGradeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数错误: " + err.Error(),
-			"data":    nil,
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    400,
+			Message: "请求参数错误: " + err.Error(),
 		})
 		return
 	}
@@ -209,25 +201,23 @@ func (h *GradeHandler) UpdateGrade(c *gin.Context) {
 	grade, err := h.gradeService.UpdateGrade(id, req)
 	if err != nil {
 		if err.Error() == "成绩不存在" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"code":    404,
-				"message": "成绩不存在",
-				"data":    nil,
+			c.JSON(http.StatusNotFound, Response{
+				Code:    404,
+				Message: "成绩不存在",
 			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "更新成绩失败: " + err.Error(),
-				"data":    nil,
+			c.JSON(http.StatusInternalServerError, Response{
+				Code:    500,
+				Message: "更新成绩失败: " + err.Error(),
 			})
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "更新成功",
-		"data":    grade,
+	c.JSON(http.StatusOK, Response{
+		Code:    200,
+		Message: "更新成功",
+		Data:    grade,
 	})
 }
 
@@ -247,10 +237,9 @@ func (h *GradeHandler) DeleteGrade(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的成绩ID",
-			"data":    nil,
+		c.JSON(http.StatusBadRequest, Response{
+			Code:    http.StatusBadRequest,
+			Message: "无效的成绩ID",
 		})
 		return
 	}
@@ -258,24 +247,21 @@ func (h *GradeHandler) DeleteGrade(c *gin.Context) {
 	err = h.gradeService.DeleteGrade(id)
 	if err != nil {
 		if err.Error() == "成绩不存在" {
-			c.JSON(http.StatusNotFound, gin.H{
-				"code":    404,
-				"message": "成绩不存在",
-				"data":    nil,
+			c.JSON(http.StatusNotFound, Response{
+				Code:    404,
+				Message: "成绩不存在",
 			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "删除成绩失败: " + err.Error(),
-				"data":    nil,
+			c.JSON(http.StatusInternalServerError, Response{
+				Code:    500,
+				Message: "删除成绩失败: " + err.Error(),
 			})
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "删除成功",
-		"data":    nil,
+	c.JSON(http.StatusOK, Response{
+		Code:    200,
+		Message: "删除成功",
 	})
 }

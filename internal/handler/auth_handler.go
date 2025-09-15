@@ -9,18 +9,12 @@ import (
 	"student-management-system/pkg/utils"
 )
 
-// ErrorResponse 错误响应结构
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-}
-
 // AuthHandler 认证处理器
 type AuthHandler struct {
 	authService *service.AuthService
 }
 
-// NewAuthHandler 创建认证处理器实例
+// NewAuthHandler 创建新的认证处理器
 func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,

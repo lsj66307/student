@@ -5,6 +5,7 @@ import (
 	"student-management-system/internal/repository"
 	"student-management-system/internal/service"
 	"student-management-system/pkg/middleware"
+	"student-management-system/pkg/validator"
 
 	"github.com/gin-gonic/gin"
 )
@@ -28,17 +29,20 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 		c.Next()
 	})
 
-	// 创建服务和处理器
-	studentHandler := NewStudentHandler()
-	teacherHandler := NewTeacherHandler()
+	// 创建验证器实例
+	customValidator := validator.NewValidator()
 
-	// 创建成绩服务和处理器
-	gradeService := service.NewGradeService(repository.DB)
-	gradeHandler := NewGradeHandler(gradeService)
-
-	// 创建认证服务和处理器
+	// 创建服务实例
 	authService := service.NewAuthService(cfg)
+	studentService := service.NewStudentService()
+	teacherService := service.NewTeacherService()
+	gradeService := service.NewGradeService(repository.DB)
+
+	// 创建处理器实例
 	authHandler := NewAuthHandler(authService)
+	studentHandler := NewStudentHandler(studentService, customValidator)
+	teacherHandler := NewTeacherHandler(teacherService)
+	gradeHandler := NewGradeHandler(gradeService)
 
 	// API路由组
 	api := router.Group("/api/v1")
@@ -46,7 +50,7 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 		// 认证相关路由（无需认证）
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", authHandler.Login)           // 管理员登录
+			auth.POST("/login", authHandler.Login)            // 管理员登录
 			auth.POST("/validate", authHandler.ValidateToken) // 验证token
 		}
 
@@ -55,17 +59,20 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 		protected.Use(middleware.JWTAuth()) // 应用JWT认证中间件
 		{
 			// 认证用户信息路由
-			protected.GET("/auth/profile", authHandler.GetProfile)     // 获取当前管理员信息
+			protected.GET("/auth/profile", authHandler.GetProfile)    // 获取当前管理员信息
 			protected.POST("/auth/refresh", authHandler.RefreshToken) // 刷新token
 
 			// 学生相关路由（需要认证）
 			students := protected.Group("/students")
 			{
-				students.POST("", studentHandler.CreateStudent)       // 创建学生
-				students.GET("", studentHandler.GetStudents)          // 获取学生列表
-				students.GET("/:id", studentHandler.GetStudent)       // 获取单个学生
-				students.PUT("/:id", studentHandler.UpdateStudent)    // 更新学生
-				students.DELETE("/:id", studentHandler.DeleteStudent) // 删除学生
+				students.POST("", studentHandler.CreateStudent)                    // 创建学生
+				students.GET("", studentHandler.GetStudents)                       // 获取学生列表
+				students.GET("/:id", studentHandler.GetStudent)                    // 获取单个学生
+				students.PUT("/:id", studentHandler.UpdateStudent)                 // 更新学生
+				students.DELETE("/:id", studentHandler.DeleteStudent)              // 删除学生
+				students.POST("/batch", studentHandler.BatchCreateStudents)        // 批量创建学生
+				students.DELETE("/batch", studentHandler.BatchDeleteStudents)      // 批量删除学生
+				students.PUT("/:id/transfer", studentHandler.TransferStudentMajor) // 转专业
 			}
 
 			// 老师相关路由（需要认证）
@@ -92,30 +99,34 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 
 	// 健康检查路由
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":  "ok",
-			"message": "学生管理系统运行正常",
+		c.JSON(200, Response{
+			Code:    200,
+			Message: "学生管理系统运行正常",
+			Data:    gin.H{"status": "ok"},
 		})
 	})
 
 	// 根路径
 	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "欢迎使用学生管理系统API",
-			"version": "1.0.0",
-			"endpoints": gin.H{
-				"health":         "GET /health",
-				"login":          "POST /api/v1/auth/login",
-				"profile":        "GET /api/v1/auth/profile (需要认证)",
-				"create_student": "POST /api/v1/students (需要认证)",
-				"get_students":   "GET /api/v1/students (需要认证)",
-				"get_student":    "GET /api/v1/students/{id} (需要认证)",
-				"update_student": "PUT /api/v1/students/{id} (需要认证)",
-				"delete_student": "DELETE /api/v1/students/{id} (需要认证)",
-				"create_teacher": "POST /api/v1/teachers (需要认证)",
-				"get_teachers":   "GET /api/v1/teachers (需要认证)",
-				"create_grade":   "POST /api/v1/grades (需要认证)",
-				"get_grades":     "GET /api/v1/grades (需要认证)",
+		c.JSON(200, Response{
+			Code:    200,
+			Message: "欢迎使用学生管理系统API",
+			Data: gin.H{
+				"version": "1.0.0",
+				"endpoints": gin.H{
+					"health":         "GET /health",
+					"login":          "POST /api/v1/auth/login",
+					"profile":        "GET /api/v1/auth/profile (需要认证)",
+					"create_student": "POST /api/v1/students (需要认证)",
+					"get_students":   "GET /api/v1/students (需要认证)",
+					"get_student":    "GET /api/v1/students/{id} (需要认证)",
+					"update_student": "PUT /api/v1/students/{id} (需要认证)",
+					"delete_student": "DELETE /api/v1/students/{id} (需要认证)",
+					"create_teacher": "POST /api/v1/teachers (需要认证)",
+					"get_teachers":   "GET /api/v1/teachers (需要认证)",
+					"create_grade":   "POST /api/v1/grades (需要认证)",
+					"get_grades":     "GET /api/v1/grades (需要认证)",
+				},
 			},
 		})
 	})

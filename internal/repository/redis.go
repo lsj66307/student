@@ -27,7 +27,9 @@ func InitRedis(cfg *config.Config) error {
 	ctx := context.Background()
 	pong, err := RedisClient.Ping(ctx).Result()
 	if err != nil {
-		return fmt.Errorf("Redis连接失败: %v", err)
+		log.Printf("Redis连接失败，将在无缓存模式下运行: %v", err)
+		RedisClient = nil
+		return nil // 不返回错误，允许程序继续运行
 	}
 
 	log.Printf("Redis连接成功: %s", pong)

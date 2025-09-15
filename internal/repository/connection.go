@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"student-management-system/internal/config"
 
 	_ "github.com/lib/pq"
 )
@@ -23,21 +24,19 @@ var DB *sql.DB
 
 // InitDB 初始化数据库连接
 func InitDB() error {
-	// 使用提供的连接信息
-	host := "192.168.31.114"
-	port := 5432
-	user := "postgres"
-	password := "mm152002"
-	dbname := "postgres"
+	// 加载配置
+	cfg, err := config.Load("configs/config.yaml")
+	if err != nil {
+		return fmt.Errorf("加载配置失败: %v", err)
+	}
 
-	var err error
 	var defaultDB *sql.DB
 
-	log.Printf("正在连接到 PostgreSQL: %s:%d", host, port)
+	log.Printf("正在连接到 PostgreSQL: %s:%d", cfg.Database.Host, cfg.Database.Port)
 
 	// 先连接到默认的postgres数据库
 	defaultConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, "postgres")
+		cfg.Database.Host, cfg.Database.Port, cfg.Database.Username, cfg.Database.Password, "postgres")
 
 	defaultDB, err = sql.Open("postgres", defaultConnStr)
 	if err != nil {
@@ -53,7 +52,7 @@ func InitDB() error {
 	log.Printf("成功连接到PostgreSQL")
 
 	// 创建student_management数据库（如果不存在）
-	_, err = defaultDB.Exec("CREATE DATABASE " + dbname)
+	_, err = defaultDB.Exec("CREATE DATABASE " + cfg.Database.DBName)
 	if err != nil {
 		// 数据库可能已存在，忽略错误
 		log.Println("数据库可能已存在:", err)
@@ -62,12 +61,17 @@ func InitDB() error {
 
 	// 连接到student_management数据库
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+		cfg.Database.Host, cfg.Database.Port, cfg.Database.Username, cfg.Database.Password, cfg.Database.DBName)
 
 	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
 		return fmt.Errorf("连接目标数据库失败: %v", err)
 	}
+
+	// 设置连接池参数
+	DB.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	DB.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	DB.SetConnMaxLifetime(cfg.Database.ConnMaxLifetime)
 
 	// 测试连接
 	err = DB.Ping()
@@ -87,12 +91,17 @@ func CreateTables() error {
 	studentsTable := `
 	CREATE TABLE IF NOT EXISTS students (
 		id SERIAL PRIMARY KEY,
+		student_id VARCHAR(20) UNIQUE,
 		name VARCHAR(100) NOT NULL,
 		age INTEGER,
 		gender VARCHAR(10),
 		phone VARCHAR(20),
 		email VARCHAR(100),
 		address TEXT,
+		major VARCHAR(100),
+		enrollment_date DATE,
+		graduation_date DATE,
+		status VARCHAR(20) DEFAULT 'active',
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);

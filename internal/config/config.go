@@ -2,6 +2,9 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -9,13 +12,15 @@ import (
 
 // Config 应用配置结构
 type Config struct {
-	App      AppConfig      `mapstructure:"app"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Log      LogConfig      `mapstructure:"log"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	Server   ServerConfig   `mapstructure:"server"`
-	CORS     CORSConfig     `mapstructure:"cors"`
+	App       AppConfig       `mapstructure:"app"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	Log       LogConfig       `mapstructure:"log"`
+	JWT       JWTConfig       `mapstructure:"jwt"`
+	Redis     RedisConfig     `mapstructure:"redis"`
+	Server    ServerConfig    `mapstructure:"server"`
+	CORS      CORSConfig      `mapstructure:"cors"`
+	RateLimit RateLimitConfig `mapstructure:"rateLimit"`
+	Cache     CacheConfig     `mapstructure:"cache"`
 }
 
 // AppConfig 应用配置
@@ -88,26 +93,52 @@ type CORSConfig struct {
 	MaxAge           int      `mapstructure:"max_age"`
 }
 
+// RateLimitConfig 限流配置
+type RateLimitConfig struct {
+	Enabled   bool          `mapstructure:"enabled"`
+	Type      string        `mapstructure:"type"`
+	Rate      int           `mapstructure:"rate"`
+	Burst     int           `mapstructure:"burst"`
+	Window    time.Duration `mapstructure:"window"`
+	RedisAddr string        `mapstructure:"redis_addr"`
+	RedisDB   int           `mapstructure:"redis_db"`
+}
+
+// CacheConfig 缓存配置
+type CacheConfig struct {
+	Enabled    bool          `mapstructure:"enabled"`
+	RedisAddr  string        `mapstructure:"redis_addr"`
+	RedisDB    int           `mapstructure:"redis_db"`
+	Prefix     string        `mapstructure:"prefix"`
+	DefaultTTL time.Duration `mapstructure:"default_ttl"`
+}
+
 // Load 加载配置文件
 func Load(configPath string) (*Config, error) {
 	viper.SetConfigFile(configPath)
 	viper.SetConfigType("yaml")
 
-	// 设置环境变量前缀
-	viper.SetEnvPrefix("SMS")
-	viper.AutomaticEnv()
-
 	// 设置默认值
 	setDefaults()
 
+	// 自动读取环境变量
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
 	// 读取配置文件
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
+		return nil, fmt.Errorf("读取配置文件失败: %v", err)
 	}
 
+	// 解析配置
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		return nil, fmt.Errorf("解析配置失败: %v", err)
+	}
+
+	// 手动处理环境变量替换
+	if err := expandEnvVars(&config); err != nil {
+		return nil, fmt.Errorf("环境变量解析失败: %v", err)
 	}
 
 	// 处理时间单位转换
@@ -204,4 +235,46 @@ func (c *AppConfig) IsProduction() bool {
 // IsTest 判断是否为测试模式
 func (c *AppConfig) IsTest() bool {
 	return c.Mode == "test"
+}
+
+// expandEnvVars 展开环境变量
+func expandEnvVars(config *Config) error {
+	// 数据库配置
+	if host := os.Getenv("DATABASE_HOST"); host != "" {
+		config.Database.Host = host
+	}
+	if port := os.Getenv("DATABASE_PORT"); port != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			config.Database.Port = p
+		}
+	}
+	if username := os.Getenv("DATABASE_USERNAME"); username != "" {
+		config.Database.Username = username
+	}
+	if password := os.Getenv("DATABASE_PASSWORD"); password != "" {
+		config.Database.Password = password
+	}
+	if dbname := os.Getenv("DATABASE_DBNAME"); dbname != "" {
+		config.Database.DBName = dbname
+	}
+
+	// JWT配置
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		config.JWT.Secret = secret
+	}
+
+	// Redis配置
+	if host := os.Getenv("REDIS_HOST"); host != "" {
+		config.Redis.Host = host
+	}
+	if port := os.Getenv("REDIS_PORT"); port != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			config.Redis.Port = p
+		}
+	}
+	if password := os.Getenv("REDIS_PASSWORD"); password != "" {
+		config.Redis.Password = password
+	}
+
+	return nil
 }
