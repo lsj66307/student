@@ -32,8 +32,8 @@ func main() {
 	if cfg.Log.Output == "file" {
 		loggerConfig.FilePath = cfg.Log.FilePath
 	}
-	if err := logger.Init(loggerConfig); err != nil {
-		log.Fatalf("初始化日志系统失败: %v", err)
+	if errLog := logger.Init(loggerConfig); err != nil {
+		log.Fatalf("初始化日志系统失败: %v", errLog)
 	}
 
 	logger.Info("正在启动学生管理系统")
@@ -99,9 +99,6 @@ func main() {
 	// 启动服务器
 	logger.Info("学生管理系统启动中...")
 	logger.Info("服务器运行在: http://localhost:3060")
-	logger.Info("API文档: http://localhost:3060/")
-	logger.Info("健康检查: http://localhost:3060/health")
-	logger.Info("按 Ctrl+C 停止服务器")
 
 	// 在goroutine中启动服务器
 	go func() {

@@ -74,14 +74,11 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 			// 学生相关路由（需要认证）
 			students := protected.Group("/students")
 			{
-				students.POST("", studentHandler.CreateStudent)                    // 创建学生
-				students.GET("", studentHandler.GetStudents)                       // 获取学生列表
-				students.GET("/:id", studentHandler.GetStudent)                    // 获取单个学生
-				students.PUT("/:id", studentHandler.UpdateStudent)                 // 更新学生
-				students.DELETE("/:id", studentHandler.DeleteStudent)              // 删除学生
-				students.POST("/batch", studentHandler.BatchCreateStudents)        // 批量创建学生
-				students.DELETE("/batch", studentHandler.BatchDeleteStudents)      // 批量删除学生
-				students.PUT("/:id/transfer", studentHandler.TransferStudentMajor) // 转专业
+				students.POST("", studentHandler.CreateStudent)       // 创建学生
+				students.GET("", studentHandler.GetStudents)          // 获取学生列表
+				students.GET("/:id", studentHandler.GetStudent)       // 获取单个学生
+				students.PUT("/:id", studentHandler.UpdateStudent)    // 更新学生
+				students.DELETE("/:id", studentHandler.DeleteStudent) // 删除学生
 			}
 
 			// 老师相关路由（需要认证）
@@ -115,45 +112,6 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 			}
 		}
 	}
-
-	// 健康检查路由
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, Response{
-			Code:    200,
-			Message: "学生管理系统运行正常",
-			Data:    gin.H{"status": "ok"},
-		})
-	})
-
-	// 根路径
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, Response{
-			Code:    200,
-			Message: "欢迎使用学生管理系统API",
-			Data: gin.H{
-				"version": "1.0.0",
-				"endpoints": gin.H{
-					"health":         "GET /health",
-					"login":          "POST /api/v1/auth/login",
-					"profile":        "GET /api/v1/auth/profile (需要认证)",
-					"create_student": "POST /api/v1/students (需要认证)",
-					"get_students":   "GET /api/v1/students (需要认证)",
-					"get_student":    "GET /api/v1/students/{id} (需要认证)",
-					"update_student": "PUT /api/v1/students/{id} (需要认证)",
-					"delete_student": "DELETE /api/v1/students/{id} (需要认证)",
-					"create_teacher": "POST /api/v1/teachers (需要认证)",
-					"get_teachers":   "GET /api/v1/teachers (需要认证)",
-					"create_grade":   "POST /api/v1/grades (需要认证)",
-					"get_grades":     "GET /api/v1/grades (需要认证)",
-					"create_admin":   "POST /api/v1/admins (需要认证)",
-					"get_admins":     "GET /api/v1/admins (需要认证)",
-					"get_admin":      "GET /api/v1/admins/{id} (需要认证)",
-					"update_admin":   "PUT /api/v1/admins/{id} (需要认证)",
-					"delete_admin":   "DELETE /api/v1/admins/{id} (需要认证)",
-				},
-			},
-		})
-	})
 
 	return router
 }

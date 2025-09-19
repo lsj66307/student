@@ -3,10 +3,11 @@ package handler
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"student-management-system/internal/domain"
 	"student-management-system/internal/service"
 	"student-management-system/pkg/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 // AuthHandler 认证处理器
