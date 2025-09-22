@@ -9,6 +9,7 @@ import (
 	"student-management-system/internal/config"
 	"student-management-system/internal/domain"
 	"student-management-system/internal/repository"
+	"student-management-system/pkg/errors"
 	"student-management-system/pkg/logger"
 	"student-management-system/pkg/utils"
 )
@@ -146,7 +147,7 @@ func (s *AuthService) validateCredentials(account, password string) (*domain.Adm
 		logger.WithError(err).WithFields(map[string]interface{}{
 			"account": account,
 		}).Error("Failed to get admin by account")
-		return nil, fmt.Errorf("账号不存在")
+		return nil, errors.ErrInvalidCredentials
 	}
 
 	// 验证密码
@@ -154,7 +155,7 @@ func (s *AuthService) validateCredentials(account, password string) (*domain.Adm
 		logger.WithFields(map[string]interface{}{
 			"account": account,
 		}).Warn("Password verification failed")
-		return nil, fmt.Errorf("密码错误")
+		return nil, errors.ErrInvalidCredentials
 	}
 
 	return admin, nil
@@ -195,10 +196,18 @@ func (s *AuthService) GetAdminInfo(claims *domain.JWTClaims) *domain.AdminInfo {
 func (s *AuthService) RefreshToken(claims *domain.JWTClaims) (*domain.LoginResponse, error) {
 	// 检查token是否即将过期（剩余时间少于1小时）
 	if time.Now().Unix() > claims.Exp-3600 {
+		// 先使旧token失效
+		if err := utils.InvalidateToken(claims.AdminID); err != nil {
+			logger.WithError(err).WithFields(map[string]interface{}{
+				"admin_id": claims.AdminID,
+				"account":  claims.Account,
+			}).Warn("Failed to invalidate old token during refresh")
+		}
+
 		// 生成新的token
 		expiresIn := s.config.JWT.ExpiresIn
 		if expiresIn == 0 {
-			expiresIn = 24 * time.Hour
+			expiresIn = 12 * time.Hour // 默认12小时
 		}
 
 		token, expiresAt, err := utils.GenerateToken(claims.AdminID, claims.Account, int64(expiresIn.Seconds()))
@@ -227,4 +236,26 @@ func (s *AuthService) RefreshToken(claims *domain.JWTClaims) (*domain.LoginRespo
 	}
 
 	return nil, fmt.Errorf("token does not need refresh yet")
+}
+
+// Logout 用户登出，使token失效
+func (s *AuthService) Logout(adminID int) error {
+	logger.WithFields(map[string]interface{}{
+		"admin_id": adminID,
+	}).Info("User logout initiated")
+
+	// 使token失效
+	err := utils.InvalidateToken(adminID)
+	if err != nil {
+		logger.WithError(err).WithFields(map[string]interface{}{
+			"admin_id": adminID,
+		}).Error("Failed to invalidate token during logout")
+		return fmt.Errorf("failed to logout: %w", err)
+	}
+
+	logger.WithFields(map[string]interface{}{
+		"admin_id": adminID,
+	}).Info("User logout successful")
+
+	return nil
 }

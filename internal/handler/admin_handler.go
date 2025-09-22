@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 	"student-management-system/internal/domain"
 	"student-management-system/internal/service"
+
+	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 type AdminHandler struct {
@@ -131,8 +132,8 @@ func (h *AdminHandler) UpdateAdmin(c *gin.Context) {
 	}
 
 	var req domain.UpdateAdminRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.WithError(err).Error("Failed to bind update admin request")
+	if err2 := c.ShouldBindJSON(&req); err2 != nil {
+		h.logger.WithError(err2).Error("Failed to bind update admin request")
 		c.JSON(http.StatusBadRequest, Response{
 			Code:    http.StatusBadRequest,
 			Message: "请求参数错误",

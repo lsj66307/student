@@ -1,15 +1,8 @@
 package domain
 
 import (
-	"errors"
+	"student-management-system/pkg/errors"
 	"time"
-)
-
-// 认证相关错误
-var (
-	ErrTokenExpired       = errors.New("token has expired")
-	ErrInvalidToken       = errors.New("invalid token")
-	ErrInvalidCredentials = errors.New("invalid username or password")
 )
 
 // Admin 管理员模型
@@ -57,7 +50,7 @@ type JWTClaims struct {
 // Valid 验证JWT声明是否有效
 func (c *JWTClaims) Valid() error {
 	if time.Now().Unix() > c.Exp {
-		return ErrTokenExpired
+		return errors.ErrTokenExpired
 	}
 	return nil
 }

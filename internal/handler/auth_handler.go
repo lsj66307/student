@@ -5,6 +5,7 @@ import (
 
 	"student-management-system/internal/domain"
 	"student-management-system/internal/service"
+	"student-management-system/pkg/errors"
 	"student-management-system/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -47,7 +48,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// 执行登录
 	response, err := h.authService.Login(&req)
 	if err != nil {
-		if err == domain.ErrInvalidCredentials {
+		if err == errors.ErrInvalidCredentials {
 			c.JSON(http.StatusUnauthorized, ErrorResponse{
 				Error:   "Authentication failed",
 				Message: "Invalid username or password",
@@ -180,4 +181,50 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 
 	adminInfo := h.authService.GetAdminInfo(claims)
 	c.JSON(http.StatusOK, adminInfo)
+}
+
+// Logout 用户登出
+// @Summary 用户登出
+// @Description 使当前用户的JWT token失效
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]string "登出成功"
+// @Failure 401 {object} ErrorResponse "未授权"
+// @Failure 500 {object} ErrorResponse "服务器内部错误"
+// @Router /api/v1/auth/logout [post]
+func (h *AuthHandler) Logout(c *gin.Context) {
+	// 从上下文中获取JWT claims
+	claims, exists := c.Get("claims")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Error:   "Unauthorized",
+			Message: "Invalid or missing token",
+		})
+		return
+	}
+
+	jwtClaims, ok := claims.(*domain.JWTClaims)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Internal error",
+			Message: "Invalid token claims",
+		})
+		return
+	}
+
+	// 使token失效
+	err := h.authService.Logout(jwtClaims.AdminID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Logout failed",
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, map[string]string{
+		"message": "Logout successful",
+	})
 }

@@ -42,7 +42,7 @@ func InitDB() error {
 	defaultConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Database.Host, cfg.Database.Port, cfg.Database.Username, cfg.Database.Password, "student_management")
 
-	defaultDB, err = sql.Open("student_management", defaultConnStr)
+	defaultDB, err = sql.Open("postgres", defaultConnStr)
 	if err != nil {
 		logger.WithError(err).Error("Failed to open database connection")
 		return fmt.Errorf("打开数据库连接失败: %v", err)

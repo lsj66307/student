@@ -70,6 +70,7 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 			// 认证用户信息路由
 			protected.GET("/auth/profile", authHandler.GetProfile)    // 获取当前管理员信息
 			protected.POST("/auth/refresh", authHandler.RefreshToken) // 刷新token
+			protected.POST("/auth/logout", authHandler.Logout)        // 用户登出
 
 			// 学生相关路由（需要认证）
 			students := protected.Group("/students")

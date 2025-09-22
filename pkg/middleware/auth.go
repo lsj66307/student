@@ -3,10 +3,12 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"student-management-system/internal/domain"
+	"student-management-system/pkg/errors"
 	"student-management-system/pkg/logger"
 	"student-management-system/pkg/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 // ErrorResponse 错误响应结构
@@ -50,9 +52,9 @@ func JWTAuth() gin.HandlerFunc {
 			logger.WithError(err).Warn("token验证失败")
 			var message string
 			switch err {
-			case domain.ErrTokenExpired:
+			case errors.ErrTokenExpired:
 				message = "Token has expired"
-			case domain.ErrInvalidToken:
+			case errors.ErrInvalidToken:
 				message = "Invalid token"
 			default:
 				message = err.Error()
