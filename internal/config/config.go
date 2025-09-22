@@ -133,7 +133,7 @@ func Load(configPath string) (*Config, error) {
 
 	// 处理时间单位转换
 	config.Database.ConnMaxLifetime *= time.Second
-	config.JWT.ExpiresIn *= time.Second
+	// JWT.ExpiresIn 已经通过 mapstructure 正确解析为 time.Duration，无需再乘以 time.Second
 	config.Server.ReadTimeout *= time.Second
 	config.Server.WriteTimeout *= time.Second
 	config.Server.IdleTimeout *= time.Second

@@ -586,10 +586,10 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /api/v1/grades/{id}:
     get:
-      summary: 获取单个成绩
-      description: 根据成绩ID获取成绩详细信息
       tags:
         - 成绩管理
+      summary: 获取成绩详情
+      description: 根据成绩ID获取成绩详细信息
       parameters:
         - name: id
           in: path
@@ -597,23 +597,14 @@ paths:
           description: 成绩ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
         "200":
-          description: 成功获取成绩信息
+          description: 成功获取成绩详情
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: "获取成功"
-                  data:
-                    $ref: "#/components/schemas/GradeWithDetails"
+                $ref: "#/components/schemas/GradeWithDetails"
         "404":
           description: 成绩不存在
           content:
@@ -627,10 +618,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
     put:
-      summary: 更新成绩
-      description: 根据成绩ID更新成绩信息
       tags:
         - 成绩管理
+      summary: 更新成绩
+      description: 根据成绩ID更新成绩信息
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -638,7 +631,7 @@ paths:
           description: 成绩ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       requestBody:
         required: true
         content:
@@ -651,18 +644,15 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  code:
-                    type: integer
-                    example: 200
-                  message:
-                    type: string
-                    example: "更新成功"
-                  data:
-                    $ref: "#/components/schemas/Grade"
+                $ref: "#/components/schemas/Grade"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未授权
           content:
             application/json:
               schema:
@@ -680,10 +670,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
     delete:
-      summary: 删除成绩
-      description: 根据成绩ID删除成绩记录
       tags:
         - 成绩管理
+      summary: 删除成绩
+      description: 根据成绩ID删除成绩记录
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -691,7 +683,7 @@ paths:
           description: 成绩ID
           schema:
             type: integer
-            minimum: 1
+            example: 1
       responses:
         "200":
           description: 成绩删除成功
@@ -700,12 +692,15 @@ paths:
               schema:
                 type: object
                 properties:
-                  code:
-                    type: integer
-                    example: 200
                   message:
                     type: string
-                    example: "删除成功"
+                    example: "成绩删除成功"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: 成绩不存在
           content:
@@ -718,6 +713,431 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # 认证相关API
+  /api/v1/auth/login:
+    post:
+      tags:
+        - 认证
+      summary: 管理员登录
+      description: 使用账号和密码进行管理员登录，返回JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 用户名或密码错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/profile:
+    get:
+      tags:
+        - 认证
+      summary: 获取当前管理员信息
+      description: 根据JWT token获取当前登录的管理员信息
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 获取管理员信息成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInfo"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - 认证
+      summary: 刷新JWT token
+      description: 使用当前有效的JWT token获取新的token
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: token刷新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: token不需要刷新
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/validate:
+    post:
+      tags:
+        - 认证
+      summary: 验证JWT token
+      description: 验证JWT token的有效性
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token
+          schema:
+            type: string
+            example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        "200":
+          description: token有效，返回管理员信息
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInfo"
+        "401":
+          description: token无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - 认证
+      summary: 用户登出
+      description: 使当前用户的JWT token失效
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Logout successful"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # 管理员管理API
+  /api/v1/admins:
+    get:
+      tags:
+        - 管理员管理
+      summary: 获取管理员列表
+      description: 分页获取管理员列表，支持按账号和姓名搜索
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: 页码，从1开始
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: page_size
+          in: query
+          required: false
+          description: 每页数量，最大100
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
+        - name: account
+          in: query
+          required: false
+          description: 按账号搜索
+          schema:
+            type: string
+            example: "admin"
+        - name: name
+          in: query
+          required: false
+          description: 按姓名搜索
+          schema:
+            type: string
+            example: "张三"
+      responses:
+        "200":
+          description: 成功获取管理员列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminListResponse"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+        - 管理员管理
+      summary: 创建管理员
+      description: 创建新的管理员账号
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAdminRequest"
+      responses:
+        "201":
+          description: 管理员创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInfo"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 账号已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/admins/{id}:
+    get:
+      tags:
+        - 管理员管理
+      summary: 获取管理员详情
+      description: 根据管理员ID获取管理员详细信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 管理员ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: 成功获取管理员详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInfo"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 管理员不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      tags:
+        - 管理员管理
+      summary: 更新管理员信息
+      description: 根据管理员ID更新管理员信息
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 管理员ID
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAdminRequest"
+      responses:
+        "200":
+          description: 管理员信息更新成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInfo"
+        "400":
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 管理员不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 账号已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags:
+        - 管理员管理
+      summary: 删除管理员
+      description: 根据管理员ID删除管理员账号
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 管理员ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        "200":
+          description: 管理员删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "管理员删除成功"
+        "401":
+          description: 未授权
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 禁止删除自己的账号
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 管理员不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /health:
     get:
       summary: 健康检查
@@ -1183,6 +1603,181 @@ components:
           type: string
           description: 错误信息
           example: "请求参数错误"
+
+    # 认证相关模型
+    LoginRequest:
+      type: object
+      properties:
+        account:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "admin"
+          description: "管理员账号"
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+          example: "123456"
+          description: "密码"
+      required:
+        - account
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          description: "JWT访问令牌"
+        expires_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T12:00:00Z"
+          description: "令牌过期时间"
+        admin:
+          $ref: "#/components/schemas/AdminInfo"
+      required:
+        - token
+        - expires_at
+        - admin
+
+    AdminInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+          description: "管理员ID"
+        account:
+          type: string
+          example: "admin"
+          description: "管理员账号"
+        name:
+          type: string
+          example: "管理员"
+          description: "管理员姓名"
+        phone:
+          type: string
+          example: "13800138000"
+          description: "手机号"
+        email:
+          type: string
+          example: "admin@example.com"
+          description: "邮箱"
+      required:
+        - id
+        - account
+        - name
+
+    # 管理员管理相关模型
+    CreateAdminRequest:
+      type: object
+      properties:
+        account:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "admin001"
+          description: "管理员账号"
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+          example: "123456"
+          description: "密码"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "张三"
+          description: "管理员姓名"
+        phone:
+          type: string
+          pattern: "^[0-9]{11}$"
+          example: "13800138000"
+          description: "手机号（11位数字）"
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          example: "admin@example.com"
+          description: "邮箱"
+      required:
+        - account
+        - password
+        - name
+
+    UpdateAdminRequest:
+      type: object
+      properties:
+        account:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: "admin001"
+          description: "管理员账号"
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+          example: "123456"
+          description: "密码（可选，不填则不更新）"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: "张三"
+          description: "管理员姓名"
+        phone:
+          type: string
+          pattern: "^[0-9]{11}$"
+          example: "13800138000"
+          description: "手机号（11位数字）"
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          example: "admin@example.com"
+          description: "邮箱"
+      required:
+        - account
+        - name
+
+    AdminListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+          description: "总记录数"
+        page:
+          type: integer
+          example: 1
+          description: "当前页码"
+        size:
+          type: integer
+          example: 10
+          description: "每页数量"
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminInfo"
+          description: "管理员列表"
+      required:
+        - total
+        - page
+        - size
+        - data
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT认证，格式：Bearer {token}"
+
 tags:
   - name: 学生管理
     description: 学生信息的增删改查操作
@@ -1190,5 +1785,9 @@ tags:
     description: 老师信息的增删改查操作
   - name: 成绩管理
     description: 成绩信息的增删改查操作
+  - name: 认证
+    description: 用户认证相关接口
+  - name: 管理员管理
+    description: 管理员账号的增删改查操作
   - name: 系统
     description: 系统相关接口
