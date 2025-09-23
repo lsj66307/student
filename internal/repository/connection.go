@@ -138,6 +138,7 @@ func CreateTables() error {
 		gender VARCHAR(10),
 		email VARCHAR(100),
 		phone VARCHAR(20),
+		subject_id INTEGER REFERENCES subjects(id) ON DELETE SET NULL,
 		subject VARCHAR(50) NOT NULL,
 		title VARCHAR(50),
 		department VARCHAR(100),
@@ -172,32 +173,46 @@ func CreateTables() error {
 		return fmt.Errorf("failed to create admins table: %v", err)
 	}
 
-	// 创建成绩表 - 简化为5个科目
-	gradesTable := `
-	DROP TABLE IF EXISTS grades CASCADE;
-	CREATE TABLE grades (
+	// 创建科目表
+	subjectsTable := `
+	CREATE TABLE IF NOT EXISTS subjects (
 		id SERIAL PRIMARY KEY,
-		student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-		chinese_score DECIMAL(5,2) CHECK (chinese_score >= 0 AND chinese_score <= 100),
-		math_score DECIMAL(5,2) CHECK (math_score >= 0 AND math_score <= 100),
-		english_score DECIMAL(5,2) CHECK (english_score >= 0 AND english_score <= 100),
-		sports_score DECIMAL(5,2) CHECK (sports_score >= 0 AND sports_score <= 100),
-		music_score DECIMAL(5,2) CHECK (music_score >= 0 AND music_score <= 100),
-		chinese_teacher_id INTEGER REFERENCES teachers(id),
-		math_teacher_id INTEGER REFERENCES teachers(id),
-		english_teacher_id INTEGER REFERENCES teachers(id),
-		sports_teacher_id INTEGER REFERENCES teachers(id),
-		music_teacher_id INTEGER REFERENCES teachers(id),
+		name VARCHAR(50) NOT NULL,
+		code VARCHAR(20) NOT NULL UNIQUE,
+		description TEXT,
+		credits INTEGER NOT NULL DEFAULT 1,
+		status VARCHAR(20) NOT NULL DEFAULT 'active',
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(student_id)
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 
-	_, err = DB.Exec(gradesTable)
+	_, err = DB.Exec(subjectsTable)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create grades table")
-		return fmt.Errorf("failed to create grades table: %v", err)
+		logger.WithError(err).Error("Failed to create subjects table")
+		return fmt.Errorf("failed to create subjects table: %v", err)
+	}
+
+	// 创建成绩表
+	scoresTable := `
+	CREATE TABLE IF NOT EXISTS scores (
+		id SERIAL PRIMARY KEY,
+		student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+		subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+		score DECIMAL(5,2) NOT NULL CHECK (score >= 0 AND score <= 100),
+		semester VARCHAR(20) NOT NULL,
+		exam_type VARCHAR(20) NOT NULL,
+		remarks TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(student_id, subject_id, semester, exam_type)
+	);
+	`
+
+	_, err = DB.Exec(scoresTable)
+	if err != nil {
+		logger.WithError(err).Error("Failed to create scores table")
+		return fmt.Errorf("failed to create scores table: %v", err)
 	}
 
 	// 创建更新时间触发器函数
@@ -248,18 +263,18 @@ func CreateTables() error {
 	}
 
 	// 为成绩表创建触发器
-	gradeTrigger := `
-	DROP TRIGGER IF EXISTS update_grades_updated_at ON grades;
-	CREATE TRIGGER update_grades_updated_at
-		BEFORE UPDATE ON grades
+	scoreTrigger := `
+	DROP TRIGGER IF EXISTS update_scores_updated_at ON scores;
+	CREATE TRIGGER update_scores_updated_at
+		BEFORE UPDATE ON scores
 		FOR EACH ROW
 		EXECUTE FUNCTION update_updated_at_column();
 	`
 
-	_, err = DB.Exec(gradeTrigger)
+	_, err = DB.Exec(scoreTrigger)
 	if err != nil {
-		logger.WithError(err).Error("Failed to create grades trigger")
-		return fmt.Errorf("failed to create grades trigger: %v", err)
+		logger.WithError(err).Error("Failed to create scores trigger")
+		return fmt.Errorf("failed to create scores trigger: %v", err)
 	}
 
 	// 为管理员表创建触发器
@@ -275,6 +290,21 @@ func CreateTables() error {
 	if err != nil {
 		logger.WithError(err).Error("Failed to create admins trigger")
 		return fmt.Errorf("failed to create admins trigger: %v", err)
+	}
+
+	// 为科目表创建触发器
+	subjectTrigger := `
+	DROP TRIGGER IF EXISTS update_subjects_updated_at ON subjects;
+	CREATE TRIGGER update_subjects_updated_at
+		BEFORE UPDATE ON subjects
+		FOR EACH ROW
+		EXECUTE FUNCTION update_updated_at_column();
+	`
+
+	_, err = DB.Exec(subjectTrigger)
+	if err != nil {
+		logger.WithError(err).Error("Failed to create subjects trigger")
+		return fmt.Errorf("failed to create subjects trigger: %v", err)
 	}
 
 	logger.Info("Database tables created successfully")

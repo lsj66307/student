@@ -151,7 +151,7 @@ func (s *AuthService) validateCredentials(account, password string) (*domain.Adm
 	}
 
 	// 验证密码
-	if s.hashPassword(password) != admin.Password {
+	if s.md5Password(password) != admin.Password {
 		logger.WithFields(map[string]interface{}{
 			"account": account,
 		}).Warn("Password verification failed")
@@ -161,8 +161,8 @@ func (s *AuthService) validateCredentials(account, password string) (*domain.Adm
 	return admin, nil
 }
 
-// hashPassword 简单的密码哈希（使用MD5）
-func (s *AuthService) hashPassword(password string) string {
+// md5Password （使用MD5）
+func (s *AuthService) md5Password(password string) string {
 	h := md5.New()
 	h.Write([]byte(password))
 	return fmt.Sprintf("%x", h.Sum(nil))

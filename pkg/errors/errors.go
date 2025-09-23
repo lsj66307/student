@@ -24,7 +24,6 @@ const (
 	// 业务错误
 	ErrCodeStudentNotFound    ErrorCode = "STUDENT_NOT_FOUND"
 	ErrCodeTeacherNotFound    ErrorCode = "TEACHER_NOT_FOUND"
-	ErrCodeGradeNotFound      ErrorCode = "GRADE_NOT_FOUND"
 	ErrCodeDuplicateStudent   ErrorCode = "DUPLICATE_STUDENT"
 	ErrCodeDuplicateTeacher   ErrorCode = "DUPLICATE_TEACHER"
 	ErrCodeInvalidCredentials ErrorCode = "INVALID_CREDENTIALS"
@@ -125,12 +124,10 @@ func getHTTPStatus(code ErrorCode) int {
 		return http.StatusUnauthorized
 	case ErrCodeForbidden:
 		return http.StatusForbidden
-	case ErrCodeNotFound, ErrCodeStudentNotFound, ErrCodeTeacherNotFound, ErrCodeGradeNotFound:
+	case ErrCodeNotFound, ErrCodeStudentNotFound, ErrCodeTeacherNotFound:
 		return http.StatusNotFound
 	case ErrCodeConflict, ErrCodeDuplicateStudent, ErrCodeDuplicateTeacher:
 		return http.StatusConflict
-	case ErrCodeInternal, ErrCodeDatabaseError, ErrCodeConnectionError:
-		return http.StatusInternalServerError
 	default:
 		return http.StatusInternalServerError
 	}
@@ -213,7 +210,6 @@ var (
 
 	ErrStudentNotFound    = New(ErrCodeStudentNotFound, "Student not found")
 	ErrTeacherNotFound    = New(ErrCodeTeacherNotFound, "Teacher not found")
-	ErrGradeNotFound      = New(ErrCodeGradeNotFound, "Grade not found")
 	ErrDuplicateStudent   = New(ErrCodeDuplicateStudent, "Student already exists")
 	ErrDuplicateTeacher   = New(ErrCodeDuplicateTeacher, "Teacher already exists")
 	ErrInvalidCredentials = New(ErrCodeInvalidCredentials, "Invalid username or password")

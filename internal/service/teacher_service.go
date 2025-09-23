@@ -26,20 +26,20 @@ func (t *TeacherService) CreateTeacher(req domain.CreateTeacherRequest) (*domain
 	logger.WithFields(map[string]interface{}{
 		"name":       req.Name,
 		"email":      req.Email,
-		"subject":    req.Subject,
+		"subject_id": req.SubjectID,
 		"department": req.Department,
 	}).Info("Creating new teacher")
 
 	query := `
-		INSERT INTO teachers (name, age, gender, email, phone, subject, title, department)
+		INSERT INTO teachers (name, age, gender, email, phone, subject_id, title, department)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
+		RETURNING id, name, age, gender, email, phone, subject_id, title, department, created_at, updated_at
 	`
 
 	teacher := &domain.Teacher{}
-	err := t.db.QueryRow(query, req.Name, req.Age, req.Gender, req.Email, req.Phone, req.Subject, req.Title, req.Department).Scan(
+	err := t.db.QueryRow(query, req.Name, req.Age, req.Gender, req.Email, req.Phone, req.SubjectID, req.Title, req.Department).Scan(
 		&teacher.ID, &teacher.Name, &teacher.Age, &teacher.Gender,
-		&teacher.Email, &teacher.Phone, &teacher.Subject, &teacher.Title,
+		&teacher.Email, &teacher.Phone, &teacher.SubjectID, &teacher.Title,
 		&teacher.Department, &teacher.CreatedAt, &teacher.UpdatedAt,
 	)
 
@@ -47,7 +47,7 @@ func (t *TeacherService) CreateTeacher(req domain.CreateTeacherRequest) (*domain
 		logger.WithError(err).WithFields(map[string]interface{}{
 			"name":       req.Name,
 			"email":      req.Email,
-			"subject":    req.Subject,
+			"subject_id": req.SubjectID,
 			"department": req.Department,
 		}).Error("Failed to create teacher")
 		return nil, fmt.Errorf("failed to create teacher: %v", err)
@@ -56,7 +56,7 @@ func (t *TeacherService) CreateTeacher(req domain.CreateTeacherRequest) (*domain
 	logger.WithFields(map[string]interface{}{
 		"teacher_id": teacher.ID,
 		"name":       teacher.Name,
-		"subject":    teacher.Subject,
+		"subject_id": teacher.SubjectID,
 	}).Info("Teacher created successfully")
 
 	return teacher, nil
@@ -69,7 +69,7 @@ func (t *TeacherService) GetTeacherByID(id int) (*domain.Teacher, error) {
 	}).Info("Getting teacher by ID")
 
 	query := `
-		SELECT id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
+		SELECT id, name, age, gender, email, phone, subject_id, subject, title, department, created_at, updated_at
 		FROM teachers
 		WHERE id = $1
 	`
@@ -77,7 +77,7 @@ func (t *TeacherService) GetTeacherByID(id int) (*domain.Teacher, error) {
 	teacher := &domain.Teacher{}
 	err := t.db.QueryRow(query, id).Scan(
 		&teacher.ID, &teacher.Name, &teacher.Age, &teacher.Gender,
-		&teacher.Email, &teacher.Phone, &teacher.Subject, &teacher.Title,
+		&teacher.Email, &teacher.Phone, &teacher.SubjectID, &teacher.Subject, &teacher.Title,
 		&teacher.Department, &teacher.CreatedAt, &teacher.UpdatedAt,
 	)
 
@@ -118,7 +118,7 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, 
 
 	// 获取分页数据
 	query := `
-		SELECT id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
+		SELECT id, name, age, gender, email, phone, subject_id, subject, title, department, created_at, updated_at
 		FROM teachers
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
@@ -139,7 +139,7 @@ func (t *TeacherService) GetAllTeachers(page, pageSize int) ([]*domain.Teacher, 
 		teacher := &domain.Teacher{}
 		err := rows.Scan(
 			&teacher.ID, &teacher.Name, &teacher.Age, &teacher.Gender,
-			&teacher.Email, &teacher.Phone, &teacher.Subject, &teacher.Title,
+			&teacher.Email, &teacher.Phone, &teacher.SubjectID, &teacher.Subject, &teacher.Title,
 			&teacher.Department, &teacher.CreatedAt, &teacher.UpdatedAt,
 		)
 		if err != nil {
@@ -196,9 +196,9 @@ func (t *TeacherService) UpdateTeacher(id int, req domain.UpdateTeacherRequest) 
 		args = append(args, req.Phone)
 		argIndex++
 	}
-	if req.Subject != "" {
-		setClauses = append(setClauses, fmt.Sprintf("subject = $%d", argIndex))
-		args = append(args, req.Subject)
+	if req.SubjectID > 0 {
+		setClauses = append(setClauses, fmt.Sprintf("subject_id = $%d", argIndex))
+		args = append(args, req.SubjectID)
 		argIndex++
 	}
 	if req.Title != "" {
@@ -228,7 +228,7 @@ func (t *TeacherService) UpdateTeacher(id int, req domain.UpdateTeacherRequest) 
 		UPDATE teachers
 		SET %s
 		WHERE id = $%d
-		RETURNING id, name, age, gender, email, phone, subject, title, department, created_at, updated_at
+		RETURNING id, name, age, gender, email, phone, subject_id, subject, title, department, created_at, updated_at
 	`, fmt.Sprintf("%s", setClauses), argIndex)
 
 	teacher := &domain.Teacher{}

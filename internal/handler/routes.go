@@ -38,19 +38,22 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 
 	// 创建Repository实例
 	adminRepo := repository.NewAdminRepository(repository.DB, loggerInstance)
+	scoreRepo := repository.NewScoreRepository(repository.DB)
 
 	// 创建服务实例
 	authService := service.NewAuthService(cfg, adminRepo)
 	studentService := service.NewStudentService()
 	teacherService := service.NewTeacherService()
-	gradeService := service.NewGradeService(repository.DB)
+	subjectService := service.NewSubjectService()
+	scoreService := service.NewScoreService(scoreRepo)
 	adminService := service.NewAdminService(adminRepo, loggerInstance)
 
 	// 创建处理器实例
 	authHandler := NewAuthHandler(authService)
 	studentHandler := NewStudentHandler(studentService, customValidator)
 	teacherHandler := NewTeacherHandler(teacherService)
-	gradeHandler := NewGradeHandler(gradeService)
+	subjectHandler := NewSubjectHandler(subjectService, customValidator)
+	scoreHandler := NewScoreHandler(scoreService)
 	adminHandler := NewAdminHandler(adminService, loggerInstance)
 
 	// API路由组
@@ -92,14 +95,24 @@ func SetupRoutes(cfg *config.Config) *gin.Engine {
 				teachers.DELETE("/:id", teacherHandler.DeleteTeacher) // 删除老师
 			}
 
-			// 成绩相关路由（需要认证）
-			grades := protected.Group("/grades")
+			// 科目相关路由（需要认证）
+			subjects := protected.Group("/subjects")
 			{
-				grades.POST("", gradeHandler.CreateGrade)       // 创建成绩
-				grades.GET("", gradeHandler.GetGrades)          // 获取成绩列表
-				grades.GET("/:id", gradeHandler.GetGrade)       // 获取单个成绩
-				grades.PUT("/:id", gradeHandler.UpdateGrade)    // 更新成绩
-				grades.DELETE("/:id", gradeHandler.DeleteGrade) // 删除成绩
+				subjects.POST("", subjectHandler.CreateSubject)       // 创建科目
+				subjects.GET("", subjectHandler.GetSubjects)          // 获取科目列表
+				subjects.GET("/:id", subjectHandler.GetSubject)       // 获取单个科目
+				subjects.PUT("/:id", subjectHandler.UpdateSubject)    // 更新科目
+				subjects.DELETE("/:id", subjectHandler.DeleteSubject) // 删除科目
+			}
+
+			// 成绩相关路由（需要认证）
+			scores := protected.Group("/scores")
+			{
+				scores.POST("", scoreHandler.CreateScore)       // 创建成绩
+				scores.GET("", scoreHandler.GetScores)          // 获取成绩列表
+				scores.GET("/:id", scoreHandler.GetScore)       // 获取单个成绩
+				scores.PUT("/:id", scoreHandler.UpdateScore)    // 更新成绩
+				scores.DELETE("/:id", scoreHandler.DeleteScore) // 删除成绩
 			}
 
 			// 管理员相关路由（需要认证）

@@ -31,7 +31,7 @@ func (s *AdminService) CreateAdmin(req *domain.CreateAdminRequest) (*domain.Admi
 	}
 
 	// 密码加密
-	hashedPassword := s.hashPassword(req.Password)
+	hashedPassword := s.md5Password(req.Password)
 
 	// 创建管理员对象
 	admin := &domain.Admin{
@@ -109,7 +109,7 @@ func (s *AdminService) UpdateAdmin(id int, req *domain.UpdateAdminRequest) (*dom
 
 	// 如果要更新密码
 	if req.Password != "" {
-		admin.Password = s.hashPassword(req.Password)
+		admin.Password = s.md5Password(req.Password)
 	}
 
 	// 保存更新
@@ -200,15 +200,15 @@ func (s *AdminService) ValidateAdmin(account, password string) (*domain.Admin, e
 	}
 
 	// 验证密码
-	if s.hashPassword(password) != admin.Password {
+	if s.md5Password(password) != admin.Password {
 		return nil, fmt.Errorf("账号或密码错误")
 	}
 
 	return admin, nil
 }
 
-// hashPassword MD5密码加密
-func (s *AdminService) hashPassword(password string) string {
+// md5Password MD5密码加密
+func (s *AdminService) md5Password(password string) string {
 	h := md5.New()
 	h.Write([]byte(password))
 	return fmt.Sprintf("%x", h.Sum(nil))
